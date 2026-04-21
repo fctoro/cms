@@ -58,6 +58,12 @@ const navItems: NavItem[] = [
     path: "/tracking",
   },
   {
+    icon: <DocsIcon />,
+    name: "Pages / Slides",
+    path: "/pages",
+  },
+
+  {
     icon: <GroupIcon />,
     name: "Club",
     subItems: [

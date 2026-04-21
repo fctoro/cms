@@ -6,36 +6,92 @@ import path from "path";
 const db = require("@/server/db");
 export const runtime = "nodejs";
 
-async function resolveDocumentBytes(doc) {
-  if (doc.path) {
-    if (/^https?:\/\//i.test(doc.path)) {
-      const response = await fetch(doc.path);
-      if (response.ok) {
-        return Buffer.from(await response.arrayBuffer());
-      }
-    } else {
-      const fullPath = path.join(process.cwd(), "public", doc.path);
-      if (fs.existsSync(fullPath)) {
-        return fs.readFileSync(fullPath);
-      }
 
-      const frontendUrl = process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_SITE_URL;
-      if (frontendUrl) {
-        const remoteUrl = `${frontendUrl.replace(/\/$/, "")}/${doc.path.replace(/^\/+/, "")}`;
-        const response = await fetch(remoteUrl);
+async function resolveDocumentBytes(doc) {
+  // Priority 1: Use BYTEA data stored directly in the database (most reliable)
+  if (doc.data && Buffer.isBuffer(doc.data) && doc.data.length > 0) {
+    return doc.data;
+  }
+
+  // Priority 2: Handle path-based storage
+  if (doc.path) {
+    const pathStr = String(doc.path);
+
+    // Full URL — fetch directly
+    if (/^https?:\/\//i.test(pathStr)) {
+      try {
+        const response = await fetch(pathStr, { signal: AbortSignal.timeout(10000) });
         if (response.ok) {
           return Buffer.from(await response.arrayBuffer());
         }
+      } catch (e) {
+        console.warn(`[resolveDocumentBytes] Could not fetch URL ${pathStr}:`, e.message);
+      }
+    } else {
+      // Relative storage path — try to build Supabase public URL
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const bucket = process.env.SUPABASE_STORAGE_BUCKET || "videos";
+      if (supabaseUrl) {
+        const publicUrl = `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/${bucket}/${pathStr.replace(/^\/+/, "")}`;
+        try {
+          const response = await fetch(publicUrl, { signal: AbortSignal.timeout(10000) });
+          if (response.ok) {
+            return Buffer.from(await response.arrayBuffer());
+          }
+        } catch (e) {
+          console.warn(`[resolveDocumentBytes] Could not fetch Supabase URL ${publicUrl}:`, e.message);
+        }
+      }
+
+      // Try as local file under public/
+      try {
+        const fullPath = path.join(process.cwd(), "public", pathStr);
+        if (fs.existsSync(fullPath)) {
+          return fs.readFileSync(fullPath);
+        }
+      } catch (e) {
+        console.warn(`[resolveDocumentBytes] Could not read local file:`, e.message);
       }
     }
   }
 
-  if (doc.data) {
-    return doc.data;
-  }
-
   return null;
 }
+
+/**
+ * Detect the real image type from magic bytes and embed it correctly.
+ * Falls back to PNG if unrecognized.
+ */
+async function embedImage(pdfDoc, bytes, hintMime) {
+  // Detect from magic bytes: JPEG starts with FF D8 FF, PNG starts with 89 50 4E 47
+  const isJpeg =
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff;
+
+  const isPng =
+    bytes.length >= 4 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47;
+
+  if (isJpeg) {
+    return pdfDoc.embedJpg(bytes);
+  }
+  if (isPng) {
+    return pdfDoc.embedPng(bytes);
+  }
+
+  // Fallback: use content_type hint
+  const mime = (hintMime || "").toLowerCase();
+  if (mime === "image/jpeg" || mime === "image/jpg") {
+    return pdfDoc.embedJpg(bytes);
+  }
+  return pdfDoc.embedPng(bytes);
+}
+
 
 function formatDate(value) {
   if (!value) {
@@ -152,11 +208,7 @@ export async function GET(request) {
         const photoBytes = await resolveDocumentBytes(playerPhotoDoc);
         if (photoBytes) {
           const photoOffsetY = 40;
-          const mime = (playerPhotoDoc.content_type || "").toLowerCase();
-          const photoImage =
-            mime === "image/jpeg" || mime === "image/jpg"
-              ? await pdfDoc.embedJpg(photoBytes)
-              : await pdfDoc.embedPng(photoBytes);
+          const photoImage = await embedImage(pdfDoc, photoBytes, playerPhotoDoc.content_type);
 
           page.drawRectangle({
             x: width - 152,
@@ -280,28 +332,24 @@ export async function GET(request) {
     drawFooter(page, 1);
 
     for (const doc of docRows) {
-      if (doc.doc_key === "document_photo_id") {
-        continue;
-      }
-
       try {
         const fileBytes = await resolveDocumentBytes(doc);
         if (fileBytes) {
           const attachmentPage = pdfDoc.addPage([595.28, 841.89]);
           const pageNumber = pdfDoc.getPageCount();
 
-          attachmentPage.drawText(`ANNEXE : ${doc.doc_key.replace(/_/g, " ").toUpperCase()}`, {
+          const annexLabel = doc.doc_key === "document_photo_id"
+            ? "PHOTO D'IDENTITE"
+            : doc.doc_key.replace(/_/g, " ").toUpperCase();
+
+          attachmentPage.drawText(`ANNEXE : ${annexLabel}`, {
             x: 50,
             y: 800,
             size: 14,
             font: timesBoldFont,
           });
 
-          const mime = (doc.content_type || "").toLowerCase();
-          const attachmentImage =
-            mime === "image/jpeg" || mime === "image/jpg"
-              ? await pdfDoc.embedJpg(fileBytes)
-              : await pdfDoc.embedPng(fileBytes);
+          const attachmentImage = await embedImage(pdfDoc, fileBytes, doc.content_type);
 
           const maxWidth = 500;
           const maxHeight = 650;

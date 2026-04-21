@@ -18,7 +18,7 @@ import {
   SignInPayload,
   SiteSettings,
 } from "@/types/cms";
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 
 type ArticleInput = Omit<CmsArticle, "createdAt" | "updatedAt" | "publishedAt" | "slug"> & {
   slug?: string;
@@ -460,7 +460,7 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
     [data.articles],
   );
 
-  const signIn = ({ email }: SignInPayload): AuthResponse => {
+  const signIn = useCallback(({ email }: SignInPayload): AuthResponse => {
     const sessionUser = createCurrentUserFromSession();
 
     if (!sessionUser || sessionUser.email.toLowerCase() !== email.trim().toLowerCase()) {
@@ -472,9 +472,9 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
 
     setCurrentUser(sessionUser);
     return { success: true };
-  };
+  }, []);
 
-  const signOut = () => {
+  const signOut = useCallback(() => {
     clearAdminSession();
     setCurrentUser(null);
     setData((prev) => ({
@@ -482,9 +482,9 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
       articles: prev.articles.filter((article) => article.status === "published"),
       users: [],
     }));
-  };
+  }, []);
 
-  const deleteArticle = (articleId: string) => {
+  const deleteArticle = useCallback((articleId: string) => {
     const token = getAdminToken();
 
     if (!token) {
@@ -508,83 +508,88 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
     }).catch(() => {
       console.error("[CmsContext] Echec de suppression d'article");
     });
-  };
+  }, []);
 
-  const saveArticle = (input: ArticleInput) =>
-    ({
-      ...input,
-      slug: input.slug || "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      publishedAt: input.status === "published" ? new Date().toISOString() : null,
-    }) as CmsArticle;
-
-  const saveStage = (input: StageInput) =>
-    {
-      const token = getAdminToken();
-      const nextStage = {
+  const saveArticle = useCallback(
+    (input: ArticleInput) =>
+      ({
         ...input,
         slug: input.slug || "",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         publishedAt: input.status === "published" ? new Date().toISOString() : null,
-      } as CmsStage;
+      }) as CmsArticle,
+    [],
+  );
 
-      if (!token) {
-        return nextStage;
-      }
+  const saveStage = useCallback((input: StageInput) => {
+    const token = getAdminToken();
+    const nextStage = {
+      ...input,
+      slug: input.slug || "",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      publishedAt: input.status === "published" ? new Date().toISOString() : null,
+    } as CmsStage;
 
-      const payload = {
-        titre: nextStage.title,
-        extrait: nextStage.excerpt,
-        contenu: nextStage.body,
-        photo_couverture: nextStage.coverImage,
-        departement: nextStage.department,
-        location: nextStage.location,
-        work_mode: nextStage.workMode,
-        duration: nextStage.duration,
-        contact_email: nextStage.contactEmail,
-        close_date: nextStage.closeDate,
-        supervisor: nextStage.supervisor,
-        start_date: nextStage.startDate,
-        stage_type: nextStage.stageType,
-        main_group: nextStage.mainGroup,
-        languages: nextStage.languages,
-        about_club: nextStage.aboutClub,
-        about_mission: nextStage.aboutMission,
-        responsibilities: nextStage.responsibilities,
-        club_life: nextStage.clubLife,
-        profile_searched: nextStage.profileSearched,
-        category: nextStage.category,
-        engagement: nextStage.engagement,
-        featured: nextStage.featured,
-        statut: nextStage.status,
-        slug: nextStage.slug,
-        date_publication: nextStage.publishedAt,
-      };
-
-      const method = nextStage.id ? "PUT" : "POST";
-      const url = nextStage.id ? `/api/admin/stages/${nextStage.id}` : "/api/admin/stages";
-      void fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
+    if (!token) {
       return nextStage;
+    }
+
+    const payload = {
+      titre: nextStage.title,
+      extrait: nextStage.excerpt,
+      contenu: nextStage.body,
+      photo_couverture: nextStage.coverImage,
+      departement: nextStage.department,
+      location: nextStage.location,
+      work_mode: nextStage.workMode,
+      duration: nextStage.duration,
+      contact_email: nextStage.contactEmail,
+      close_date: nextStage.closeDate,
+      supervisor: nextStage.supervisor,
+      start_date: nextStage.startDate,
+      stage_type: nextStage.stageType,
+      main_group: nextStage.mainGroup,
+      languages: nextStage.languages,
+      about_club: nextStage.aboutClub,
+      about_mission: nextStage.aboutMission,
+      responsibilities: nextStage.responsibilities,
+      club_life: nextStage.clubLife,
+      profile_searched: nextStage.profileSearched,
+      category: nextStage.category,
+      engagement: nextStage.engagement,
+      featured: nextStage.featured,
+      statut: nextStage.status,
+      slug: nextStage.slug,
+      date_publication: nextStage.publishedAt,
     };
 
-  const deleteStage = (stageId: string) => {
+    const method = nextStage.id ? "PUT" : "POST";
+    const url = nextStage.id ? `/api/admin/stages/${nextStage.id}` : "/api/admin/stages";
+    void fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    return nextStage;
+  }, []);
+
+  const deleteStage = useCallback((stageId: string) => {
     const token = getAdminToken();
     if (!token) return;
     setData((prev) => ({ ...prev, stages: prev.stages.filter((stage) => stage.id !== stageId) }));
-    void fetch(`/api/admin/stages/${stageId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-  };
+    void fetch(`/api/admin/stages/${stageId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }, []);
 
-  const savePartner = (input: CmsPartner) => {
+  const savePartner = useCallback((input: CmsPartner) => {
     const token = getAdminToken();
     if (!token) return input;
     const payload = {
@@ -598,82 +603,92 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
     };
     const method = input.id ? "PUT" : "POST";
     const url = input.id ? `/api/admin/partners/${input.id}` : "/api/admin/partners";
-    void fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
+    void fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
     return input;
-  };
+  }, []);
 
-  const deletePartner = (partnerId: string) => {
+  const deletePartner = useCallback((partnerId: string) => {
     const token = getAdminToken();
     if (!token) return;
-    setData((prev) => ({ ...prev, partners: prev.partners.filter((partner) => partner.id !== partnerId) }));
-    void fetch(`/api/admin/partners/${partnerId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-  };
+    setData((prev) => ({
+      ...prev,
+      partners: prev.partners.filter((partner) => partner.id !== partnerId),
+    }));
+    void fetch(`/api/admin/partners/${partnerId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }, []);
 
-  const saveUser = async (input: CmsUser): Promise<SaveUserResponse> => {
+  const saveUser = useCallback(async (input: CmsUser): Promise<SaveUserResponse> => {
     const token = getAdminToken();
     if (!token) return { success: false, message: "Session admin absente." };
-    
-    const payload = { 
-      nom: input.name, 
-      email: input.email, 
-      password: input.password, 
-      role: input.role, 
-      title: input.title, 
-      avatar: input.avatar, 
-      bio: input.bio, 
-      actif: input.active 
+
+    const payload = {
+      nom: input.name,
+      email: input.email,
+      password: input.password,
+      role: input.role,
+      title: input.title,
+      avatar: input.avatar,
+      bio: input.bio,
+      actif: input.active,
     };
-    
+
     const method = input.id ? "PUT" : "POST";
     const url = input.id ? `/api/admin/users/${input.id}` : "/api/admin/users";
-    
+
     try {
-      const res = await fetch(url, { 
-        method, 
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, 
-        body: JSON.stringify(payload) 
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
       });
-      
+
       const json = await res.json();
       if (!res.ok) return { success: false, message: json.error || "Erreur API" };
-      
+
       const saved = mapDbUser(json.data);
-      setData(prev => ({
+      setData((prev) => ({
         ...prev,
-        users: input.id 
-          ? prev.users.map(u => u.id === input.id ? saved : u)
-          : [saved, ...prev.users]
+        users: input.id
+          ? prev.users.map((u) => (u.id === input.id ? saved : u))
+          : [saved, ...prev.users],
       }));
-      
+
       return { success: true, user: saved };
     } catch (e) {
       return { success: false, message: "Erreur de connexion reseau." };
     }
-  };
+  }, []);
 
-  const deleteUser = async (userId: string): Promise<SaveUserResponse> => {
+  const deleteUser = useCallback(async (userId: string): Promise<SaveUserResponse> => {
     const token = getAdminToken();
     if (!token) return { success: false, message: "Session admin absente." };
-    
+
     try {
-      const res = await fetch(`/api/admin/users/${userId}`, { 
-        method: "DELETE", 
-        headers: { Authorization: `Bearer ${token}` } 
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       if (!res.ok) {
         const json = await res.json();
         return { success: false, message: json.error || "Erreur lors de la suppression" };
       }
-      
+
       setData((prev) => ({ ...prev, users: prev.users.filter((user) => user.id !== userId) }));
       return { success: true };
     } catch (e) {
       return { success: false, message: "Erreur de connexion reseau." };
     }
-  };
+  }, []);
 
-  const updateHomePage = (patch: Partial<HomePageSettings>) => {
+  const updateHomePage = useCallback((patch: Partial<HomePageSettings>) => {
     const token = getAdminToken();
     setData((prev) => {
       const next = { ...prev, homePage: { ...prev.homePage, ...patch } };
@@ -712,9 +727,9 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
       }
       return next;
     });
-  };
+  }, []);
 
-  const updateSiteSettings = (patch: Partial<SiteSettings>) => {
+  const updateSiteSettings = useCallback((patch: Partial<SiteSettings>) => {
     const token = getAdminToken();
     setData((prev) => {
       const next = { ...prev, siteSettings: { ...prev.siteSettings, ...patch } };
@@ -744,9 +759,9 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
       }
       return next;
     });
-  };
+  }, []);
 
-  const trackArticleView = (articleId: string) => {
+  const trackArticleView = useCallback((articleId: string) => {
     setData((prev) => ({
       ...prev,
       articles: prev.articles.map((article) =>
@@ -755,9 +770,9 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
           : article,
       ),
     }));
-  };
+  }, []);
 
-  const trackArticleLinkClick = (articleId: string) => {
+  const trackArticleLinkClick = useCallback((articleId: string) => {
     setData((prev) => ({
       ...prev,
       articles: prev.articles.map((article) =>
@@ -769,18 +784,18 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
           : article,
       ),
     }));
-  };
+  }, []);
 
-  const trackStageView = (stageId: string) => {
+  const trackStageView = useCallback((stageId: string) => {
     setData((prev) => ({
       ...prev,
       stages: prev.stages.map((s) =>
         s.id === stageId ? { ...s, metrics: { ...s.metrics, views: s.metrics.views + 1 } } : s,
       ),
     }));
-  };
+  }, []);
 
-  const trackStageApplication = (stageId: string) => {
+  const trackStageApplication = useCallback((stageId: string) => {
     setData((prev) => ({
       ...prev,
       stages: prev.stages.map((s) =>
@@ -789,9 +804,9 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
           : s,
       ),
     }));
-  };
+  }, []);
 
-  const trackStageContact = (stageId: string) => {
+  const trackStageContact = useCallback((stageId: string) => {
     setData((prev) => ({
       ...prev,
       stages: prev.stages.map((s) =>
@@ -800,18 +815,18 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
           : s,
       ),
     }));
-  };
+  }, []);
 
-  const trackPartnerClick = (partnerId: string) => {
+  const trackPartnerClick = useCallback((partnerId: string) => {
     setData((prev) => ({
       ...prev,
       partners: prev.partners.map((p) =>
         p.id === partnerId ? { ...p, clicks: (p.clicks || 0) + 1 } : p,
       ),
     }));
-  };
+  }, []);
 
-  const trackHomeVisit = () => {
+  const trackHomeVisit = useCallback(() => {
     setData((prev) => ({
       ...prev,
       homePage: {
@@ -819,9 +834,9 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
         visits: prev.homePage.visits + 1,
       },
     }));
-  };
+  }, []);
 
-  const trackHomeCta = () => {
+  const trackHomeCta = useCallback(() => {
     setData((prev) => ({
       ...prev,
       homePage: {
@@ -829,9 +844,9 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
         ctaClicks: prev.homePage.ctaClicks + 1,
       },
     }));
-  };
+  }, []);
 
-  const refreshUnreadDemandesCount = async () => {
+  const refreshUnreadDemandesCount = useCallback(async () => {
     try {
       const res = await fetch("/api/demandes");
       if (res.ok) {
@@ -842,51 +857,79 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (e) {
       console.error("[CmsContext] Erreur refresh unread", e);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (hydrated && currentUser) {
       refreshUnreadDemandesCount();
     }
-  }, [hydrated, currentUser]);
+  }, [hydrated, currentUser, refreshUnreadDemandesCount]);
 
-  return (
-    <CmsContext.Provider
-      value={{
-        ...data,
-        hydrated,
-        currentUser,
-        publishedArticles,
-        publishedStages,
-        alerts,
-        canManageUsers: currentUser?.role === "super_admin",
-        signIn,
-        signOut,
-        saveArticle,
-        deleteArticle,
-        saveStage,
-        deleteStage,
-        savePartner,
-        deletePartner,
-        saveUser,
-        deleteUser,
-        updateHomePage,
-        updateSiteSettings,
-        trackArticleView,
-        trackArticleLinkClick,
-        trackStageView,
-        trackStageApplication,
-        trackStageContact,
-        trackPartnerClick,
-        trackHomeVisit,
-        trackHomeCta,
-        unreadDemandesCount,
-        refreshUnreadDemandesCount,
-      }}
-    >
-      {children}
-    </CmsContext.Provider>
+  const contextValue = useMemo(
+    () => ({
+      ...data,
+      hydrated,
+      currentUser,
+      publishedArticles,
+      publishedStages,
+      alerts,
+      canManageUsers: currentUser?.role === "super_admin",
+      signIn,
+      signOut,
+      saveArticle,
+      deleteArticle,
+      saveStage,
+      deleteStage,
+      savePartner,
+      deletePartner,
+      saveUser,
+      deleteUser,
+      updateHomePage,
+      updateSiteSettings,
+      trackArticleView,
+      trackArticleLinkClick,
+      trackStageView,
+      trackStageApplication,
+      trackStageContact,
+      trackPartnerClick,
+      trackHomeVisit,
+      trackHomeCta,
+      unreadDemandesCount,
+      refreshUnreadDemandesCount,
+    }),
+    [
+      data,
+      hydrated,
+      currentUser,
+      publishedArticles,
+      publishedStages,
+      alerts,
+      signIn,
+      signOut,
+      saveArticle,
+      deleteArticle,
+      saveStage,
+      deleteStage,
+      savePartner,
+      deletePartner,
+      saveUser,
+      deleteUser,
+      updateHomePage,
+      updateSiteSettings,
+      trackArticleView,
+      trackArticleLinkClick,
+      trackStageView,
+      trackStageApplication,
+      trackStageContact,
+      trackPartnerClick,
+      trackHomeVisit,
+      trackHomeCta,
+      unreadDemandesCount,
+      refreshUnreadDemandesCount,
+    ],
   );
+
+  return <CmsContext.Provider value={contextValue}>{children}</CmsContext.Provider>;
 };
 
 export const useCms = () => {

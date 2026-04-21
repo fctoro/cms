@@ -276,30 +276,50 @@ export async function POST(request) {
     const registration = insertRegistration.rows[0];
 
     for (const documentEntry of documentEntries) {
-      const uploaded = documentEntry.file
-        ? await uploadToStorage(documentEntry.file, {
+      // Read file bytes before uploading so we can store them in the DB as a reliable fallback
+      let fileBytes = null;
+      if (documentEntry.file) {
+        try {
+          const arrayBuffer = await documentEntry.file.arrayBuffer();
+          fileBytes = Buffer.from(arrayBuffer);
+        } catch (e) {
+          console.warn(`[inscription/joueur] Could not read bytes for ${documentEntry.key}:`, e.message);
+        }
+      }
+
+      let uploadedUrl = documentEntry.url || null;
+      try {
+        if (documentEntry.file) {
+          const uploaded = await uploadToStorage(documentEntry.file, {
             folder: `registrations/${registration.id}`,
             kind: "image",
-          })
-        : null;
+          });
+          uploadedUrl = uploaded?.url || null;
+        }
+      } catch (uploadErr) {
+        console.warn(`[inscription/joueur] Storage upload failed for ${documentEntry.key}:`, uploadErr.message);
+        // Continue — we still have the bytes saved in BYTEA
+      }
 
       await client.query(
         `INSERT INTO player_registration_documents (
-          registration_id, doc_key, filename, content_type, size_bytes, path
-        ) VALUES ($1,$2,$3,$4,$5,$6)
+          registration_id, doc_key, filename, content_type, size_bytes, path, data
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7)
         ON CONFLICT (registration_id, doc_key)
         DO UPDATE SET
           filename = EXCLUDED.filename,
           content_type = EXCLUDED.content_type,
           size_bytes = EXCLUDED.size_bytes,
-          path = EXCLUDED.path`,
+          path = EXCLUDED.path,
+          data = COALESCE(EXCLUDED.data, player_registration_documents.data)`,
         [
           registration.id,
           documentEntry.key,
-          documentEntry.file?.name || documentEntry.url.split("/").pop() || documentEntry.key,
+          documentEntry.file?.name || (uploadedUrl ? uploadedUrl.split("/").pop() : documentEntry.key),
           documentEntry.file?.type || "image/jpeg",
           documentEntry.file?.size || null,
-          uploaded?.url || documentEntry.url,
+          uploadedUrl,
+          fileBytes,
         ],
       );
     }
