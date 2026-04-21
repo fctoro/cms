@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useId } from "react";
+import { uploadAsset } from "@/lib/upload-asset";
 
 export const cn = (...classes: Array<string | false | null | undefined>) =>
   classes.filter(Boolean).join(" ");
@@ -208,6 +209,8 @@ export function ImageField({
   hint?: string;
 }) {
   const fileInputId = useId();
+  const [isUploading, setIsUploading] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -216,14 +219,20 @@ export function ImageField({
       return;
     }
 
-    const nextValue = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("Image upload failed"));
-      reader.readAsDataURL(file);
-    });
-
-    onChange(nextValue);
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const uploaded = await uploadAsset(file, {
+        folder: "cms/images",
+        kind: "image",
+      });
+      onChange(uploaded.url);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Image upload failed");
+    } finally {
+      setIsUploading(false);
+      event.target.value = "";
+    }
   };
 
   return (
@@ -252,13 +261,18 @@ export function ImageField({
         {value ? (
           <button
             type="button"
-            onClick={() => onChange("")}
+            onClick={() => {
+              setUploadError(null);
+              onChange("");
+            }}
             className="text-sm font-medium text-error-600"
           >
             Retirer
           </button>
         ) : null}
+        {isUploading ? <span className="text-sm text-brand-600">Upload en cours...</span> : null}
       </div>
+      {uploadError ? <p className="text-sm text-error-600">{uploadError}</p> : null}
       {value ? (
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/40">
           <img src={value} alt={label} className="h-48 w-full object-cover" />

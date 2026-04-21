@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 const db = require("@/server/db");
 const { requireAuth } = require("@/server/auth");
 const { logAction } = require("@/server/logger");
-const { saveUploadedFile } = require("@/server/uploads");
+const { uploadToStorage } = require("@/server/storage");
 
 export const runtime = "nodejs";
 
@@ -46,14 +46,15 @@ export async function POST(request) {
       route: "/api/admin/media/upload",
     });
 
-    const saved = await saveUploadedFile(file);
-    const baseUrl = process.env.BASE_URL || "http://localhost:3000";
-    const url = `${baseUrl}${saved.publicUrl}`;
+    const saved = await uploadToStorage(file, {
+      folder: "admin/media",
+      kind: file.type.startsWith("image/") ? "image" : "file",
+    });
 
     const { rows } = await db.query(
       `INSERT INTO media (nom_fichier, url, type, uploade_par)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [file.name, url, file.type, auth.user.id],
+      [file.name, saved.url, file.type, auth.user.id],
     );
 
     return NextResponse.json({ data: rows[0] }, { status: 201 });

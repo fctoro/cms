@@ -1,11 +1,46 @@
 "use client";
 
 import { formatDate } from "@/components/common/CmsShared";
+import Loader from "@/components/common/Loader";
 import PublicSiteShell from "@/components/common/PublicSiteShell";
 import { useCms } from "@/context/CmsContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
+
+const DEFAULT_STAGE_ABOUT_CLUB = [
+  "FC TORO cherche un profil de terrain capable d'accompagner le groupe dans un cadre structure, exigeant et bienveillant.",
+  "Le stage permet de vivre le quotidien du club, d'observer la planification technique et de participer activement au developpement des jeunes.",
+];
+
+const DEFAULT_STAGE_ABOUT_MISSION = [
+  "Ce role soutient la mise en place des exercices, la gestion du groupe et la qualite des transitions pendant les seances.",
+  "Le stagiaire contribue aussi a la preparation des matchs, au suivi individuel et a la transmission des valeurs du club.",
+];
+
+const DEFAULT_STAGE_CLUB_LIFE = [
+  "Participer aux reunions techniques courtes avant et apres les seances.",
+  "Representer l'identite FC TORO dans les interactions avec joueurs et parents.",
+  "Contribuer aux temps forts du club pendant les tournois et activites academie.",
+];
+
+function parseParagraphs(value: string | null | undefined, fallback: string[] = []) {
+  const items = String(value || "")
+    .split(/\r?\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return items.length > 0 ? items : fallback;
+}
+
+function parseBulletLines(value: string | null | undefined, fallback: string[] = []) {
+  const items = String(value || "")
+    .split(/\r?\n+/)
+    .map((item) => item.replace(/^[-*•]\s*/, "").trim())
+    .filter(Boolean);
+
+  return items.length > 0 ? items : fallback;
+}
 
 export default function PublicCmsHome({ embedded = false }: { embedded?: boolean }) {
   const {
@@ -70,6 +105,12 @@ export default function PublicCmsHome({ embedded = false }: { embedded?: boolean
     featuredArticles.find((article) => article?.id === selectedArticleId) || featuredArticles[0];
   const selectedStage =
     featuredStages.find((stage) => stage?.id === selectedStageId) || featuredStages[0];
+
+  const stageAboutClub = parseParagraphs(selectedStage?.aboutClub, DEFAULT_STAGE_ABOUT_CLUB);
+  const stageAboutMission = parseParagraphs(selectedStage?.aboutMission, DEFAULT_STAGE_ABOUT_MISSION);
+  const stageClubLife = parseBulletLines(selectedStage?.clubLife, DEFAULT_STAGE_CLUB_LIFE);
+  const stageResponsibilities = parseBulletLines(selectedStage?.responsibilities);
+  const stageProfile = parseBulletLines(selectedStage?.profileSearched);
 
   const content = (
     <div>
@@ -280,15 +321,100 @@ export default function PublicCmsHome({ embedded = false }: { embedded?: boolean
               <div className="mt-6 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.16em] text-brand-300">
                 <span>{selectedStage.department}</span>
                 <span className="h-1 w-1 rounded-full bg-white/30" />
-                <span>{selectedStage.duration}</span>
+                <span>{selectedStage.duration || selectedStage.stageType || "Stage"}</span>
                 <span className="h-1 w-1 rounded-full bg-white/30" />
                 <span>{selectedStage.workMode}</span>
               </div>
               <h3 className="mt-4 text-3xl font-semibold text-white">{selectedStage.title}</h3>
-              <div
-                className="cms-prose mt-6 max-w-none text-gray-300"
-                dangerouslySetInnerHTML={{ __html: selectedStage.body }}
-              />
+              <p className="mt-4 text-sm leading-7 text-gray-300">{selectedStage.excerpt}</p>
+
+              <div className="mt-8 grid gap-3 border-y border-white/10 py-5 text-sm text-gray-300 md:grid-cols-2">
+                <div>
+                  <span className="font-semibold text-white">Superviseur:</span>{" "}
+                  {selectedStage.supervisor || "-"}
+                </div>
+                <div>
+                  <span className="font-semibold text-white">Lieu:</span> {selectedStage.location || "-"}
+                </div>
+                <div>
+                  <span className="font-semibold text-white">Debut:</span>{" "}
+                  {selectedStage.startDate ? formatDate(selectedStage.startDate) : "-"}
+                </div>
+                <div>
+                  <span className="font-semibold text-white">Type:</span>{" "}
+                  {selectedStage.stageType || selectedStage.duration || "-"}
+                </div>
+              </div>
+
+              <div className="mt-8 space-y-8 text-sm leading-7 text-gray-300">
+                <section>
+                  <h4 className="text-base font-semibold text-white">A propos du club</h4>
+                  <div className="mt-3 space-y-3">
+                    {stageAboutClub.map((paragraph) => (
+                      <p key={paragraph}>{paragraph}</p>
+                    ))}
+                  </div>
+                </section>
+
+                <section>
+                  <h4 className="text-base font-semibold text-white">A propos de la mission</h4>
+                  <div className="mt-3 space-y-3">
+                    {stageAboutMission.map((paragraph) => (
+                      <p key={paragraph}>{paragraph}</p>
+                    ))}
+                  </div>
+                </section>
+
+                {stageResponsibilities.length > 0 ? (
+                  <section>
+                    <h4 className="text-base font-semibold text-white">Responsabilites principales</h4>
+                    <ul className="mt-3 list-disc space-y-2 pl-5">
+                      {stageResponsibilities.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+
+                <section>
+                  <h4 className="text-base font-semibold text-white">Vie de club</h4>
+                  <ul className="mt-3 list-disc space-y-2 pl-5">
+                    {stageClubLife.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </section>
+
+                {stageProfile.length > 0 ? (
+                  <section>
+                    <h4 className="text-base font-semibold text-white">Profil recherche</h4>
+                    <ul className="mt-3 list-disc space-y-2 pl-5">
+                      {stageProfile.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+
+                <section className="grid gap-3 border-t border-white/10 pt-5 md:grid-cols-2">
+                  <div>
+                    <span className="font-semibold text-white">Categorie:</span>{" "}
+                    {selectedStage.category || selectedStage.department || "-"}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-white">Engagement:</span>{" "}
+                    {selectedStage.engagement || "Stage"}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-white">Groupe principal:</span>{" "}
+                    {selectedStage.mainGroup || "-"}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-white">Langues utiles:</span>{" "}
+                    {selectedStage.languages || "-"}
+                  </div>
+                </section>
+              </div>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
                   href={`mailto:${selectedStage.contactEmail}?subject=Candidature ${selectedStage.title}`}

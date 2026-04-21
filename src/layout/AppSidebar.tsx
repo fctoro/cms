@@ -45,10 +45,10 @@ const navItems: NavItem[] = [
   },
   {
     icon: <BoxCubeIcon />,
-    name: "Stages",
+    name: "Recrutement",
     subItems: [
-      { name: "Tous les stages", path: "/stages" },
-      { name: "Nouveau stage", path: "/stages/nouveau" },
+      { name: "Tous les recrutements", path: "/stages" },
+      { name: "Nouveau recrutement", path: "/stages/nouveau" },
     ],
   },
 

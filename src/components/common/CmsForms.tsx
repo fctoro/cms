@@ -47,8 +47,20 @@ const emptyStage: CmsStage = {
   duration: "",
   contactEmail: "",
   closeDate: null,
+  supervisor: "",
+  startDate: null,
+  stageType: "",
+  mainGroup: "",
+  languages: "",
+  aboutClub: "",
+  aboutMission: "",
+  responsibilities: "",
+  clubLife: "",
+  profileSearched: "",
+  category: "",
+  engagement: "",
   featured: false,
-  status: "draft",
+  status: "published",
   createdAt: "",
   updatedAt: "",
   publishedAt: null,
@@ -269,8 +281,8 @@ export function CmsStageForm({
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!form.title.trim() || !form.excerpt.trim() || !form.body.trim() || !form.contactEmail.trim()) {
-      setError("Completez le titre, le resume, la description et l'email de contact.");
+    if (!form.title.trim() || !form.excerpt.trim() || !form.contactEmail.trim()) {
+      setError("Completez le titre, le resume et l'email de contact.");
       return;
     }
 
@@ -279,14 +291,17 @@ export function CmsStageForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <SectionCard title="Fiche de stage" description="Renseignez tous les elements visibles sur le site.">
+      <SectionCard
+        title="Fiche de recrutement"
+        description="Le responsable CMS renseigne les blocs variables. Les sections A propos du club, A propos de la mission et Vie de club restent conservees."
+      >
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-2">
             <FieldLabel>Titre</FieldLabel>
             <TextInput
               value={form.title}
               onChange={(event) => updateField("title", event.target.value)}
-              placeholder="Titre du stage"
+              placeholder="Titre du recrutement"
             />
           </div>
           <div className="space-y-2">
@@ -298,11 +313,35 @@ export function CmsStageForm({
             />
           </div>
           <div className="space-y-2">
+            <FieldLabel>Superviseur</FieldLabel>
+            <TextInput
+              value={form.supervisor}
+              onChange={(event) => updateField("supervisor", event.target.value)}
+              placeholder="Responsable Academie"
+            />
+          </div>
+          <div className="space-y-2">
+            <FieldLabel>Debut</FieldLabel>
+            <TextInput
+              type="date"
+              value={form.startDate || ""}
+              onChange={(event) => updateField("startDate", event.target.value || null)}
+            />
+          </div>
+          <div className="space-y-2">
             <FieldLabel>Lieu</FieldLabel>
             <TextInput
               value={form.location}
               onChange={(event) => updateField("location", event.target.value)}
-              placeholder="Port-au-Prince"
+              placeholder="Petion-Ville, Haiti"
+            />
+          </div>
+          <div className="space-y-2">
+            <FieldLabel>Type</FieldLabel>
+            <TextInput
+              value={form.stageType}
+              onChange={(event) => updateField("stageType", event.target.value)}
+              placeholder="Recrutement de 3 mois"
             />
           </div>
           <div className="space-y-2">
@@ -353,6 +392,38 @@ export function CmsStageForm({
               onChange={(event) => updateField("closeDate", event.target.value || null)}
             />
           </div>
+          <div className="space-y-2">
+            <FieldLabel>Categorie</FieldLabel>
+            <TextInput
+              value={form.category}
+              onChange={(event) => updateField("category", event.target.value)}
+              placeholder="Coaching"
+            />
+          </div>
+          <div className="space-y-2">
+            <FieldLabel>Engagement</FieldLabel>
+            <TextInput
+              value={form.engagement}
+              onChange={(event) => updateField("engagement", event.target.value)}
+              placeholder="Recrutement"
+            />
+          </div>
+          <div className="space-y-2">
+            <FieldLabel>Groupe principal</FieldLabel>
+            <TextInput
+              value={form.mainGroup}
+              onChange={(event) => updateField("mainGroup", event.target.value)}
+              placeholder="U13"
+            />
+          </div>
+          <div className="space-y-2">
+            <FieldLabel>Langues utiles</FieldLabel>
+            <TextInput
+              value={form.languages}
+              onChange={(event) => updateField("languages", event.target.value)}
+              placeholder="Creole, Francais"
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -366,7 +437,37 @@ export function CmsStageForm({
         </div>
 
         <div className="space-y-2">
-          <FieldLabel>Description detaillee</FieldLabel>
+          <FieldLabel hint="Une ligne par responsabilite. Chaque ligne sera affichee comme un point.">
+            Responsabilites principales
+          </FieldLabel>
+          <TextAreaInput
+            rows={5}
+            value={form.responsibilities}
+            onChange={(event) => updateField("responsibilities", event.target.value)}
+            placeholder={"Assister le coach principal\nAider a l'installation du materiel\nObserver les joueurs"}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <FieldLabel hint="Une ligne par critere. Chaque ligne sera affichee comme un point.">
+            Profil recherche
+          </FieldLabel>
+          <TextAreaInput
+            rows={5}
+            value={form.profileSearched}
+            onChange={(event) => updateField("profileSearched", event.target.value)}
+            placeholder={"Bonne base en pedagogie sportive\nCapacite a communiquer clairement\nInteret pour le coaching"}
+          />
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-300">
+          Les sections <strong>A propos du club</strong>, <strong>A propos de la mission</strong> et <strong>Vie de club</strong> sont conservees telles quelles dans le modele public.
+        </div>
+
+        <div className="space-y-2">
+          <FieldLabel hint="Optionnel. Sert de contenu technique de secours si besoin.">
+            Contenu technique interne
+          </FieldLabel>
           <CmsRichTextEditor value={form.body} onChange={(value) => updateField("body", value)} />
         </div>
 
@@ -379,7 +480,7 @@ export function CmsStageForm({
         <ToggleInput
           checked={form.featured}
           onChange={(checked) => updateField("featured", checked)}
-          label="Mettre ce stage en avant sur la page principale"
+          label="Mettre ce recrutement en avant sur la page principale"
         />
       </SectionCard>
 

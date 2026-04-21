@@ -82,7 +82,7 @@ export default function SignInForm() {
             Connexion CMS
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Connectez-vous pour gerer les articles, stages, partenaires et contenus du site.
+            Connectez-vous pour gerer les articles, recrutements, partenaires et contenus du site.
           </p>
         </div>
 

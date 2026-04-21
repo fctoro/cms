@@ -12,9 +12,9 @@ export default function NewStagePage() {
 
   return (
     <div className="space-y-6">
-      <PageBreadCrumb pageTitle="Nouveau Stage" />
+      <PageBreadCrumb pageTitle="Nouveau recrutement" />
       <CmsStageForm
-        submitLabel="Creer le stage"
+        submitLabel="Creer le recrutement"
         onSubmit={async (value) => {
           setSubmitError("");
           const token = getAdminToken();
@@ -33,7 +33,7 @@ export default function NewStagePage() {
             body: JSON.stringify({
               titre: value.title,
               extrait: value.excerpt,
-              contenu: value.body,
+              contenu: value.body || "",
               photo_couverture: value.coverImage || "",
               departement: value.department,
               location: value.location,
@@ -41,6 +41,18 @@ export default function NewStagePage() {
               duration: value.duration,
               contact_email: value.contactEmail,
               close_date: value.closeDate,
+              supervisor: value.supervisor,
+              start_date: value.startDate,
+              stage_type: value.stageType,
+              main_group: value.mainGroup,
+              languages: value.languages,
+              about_club: value.aboutClub,
+              about_mission: value.aboutMission,
+              responsibilities: value.responsibilities,
+              club_life: value.clubLife,
+              profile_searched: value.profileSearched,
+              category: value.category,
+              engagement: value.engagement,
               featured: value.featured,
               statut: value.status,
               date_publication:
@@ -50,7 +62,7 @@ export default function NewStagePage() {
 
           const payload = await response.json();
           if (!response.ok) {
-            setSubmitError(payload.error || "Impossible d'enregistrer le stage.");
+            setSubmitError(payload.error || "Impossible d'enregistrer le recrutement.");
             return;
           }
 

@@ -30,7 +30,7 @@ function mapStageInput(body) {
   return {
     title: body.titre || body.title,
     excerpt: body.extrait || body.excerpt || "",
-    content: body.contenu || body.content,
+    content: body.contenu || body.content || "",
     cover_image: body.photo_couverture || body.coverImage || body.cover_image || "/images/grid-image/image-01.png",
     department: body.departement || body.department || "Communication",
     location: body.location || "",
@@ -38,6 +38,18 @@ function mapStageInput(body) {
     duration: body.duration || "",
     contact_email: body.contact_email || body.contactEmail || "",
     close_date: body.close_date || body.closeDate || null,
+    supervisor: body.supervisor || "",
+    start_date: body.start_date || body.startDate || null,
+    stage_type: body.stage_type || body.stageType || "",
+    main_group: body.main_group || body.mainGroup || "",
+    languages: body.languages || "",
+    about_club: body.about_club || body.aboutClub || "",
+    about_mission: body.about_mission || body.aboutMission || "",
+    responsibilities: body.responsibilities || "",
+    club_life: body.club_life || body.clubLife || "",
+    profile_searched: body.profile_searched || body.profileSearched || "",
+    category: body.category || "",
+    engagement: body.engagement || "",
     featured: Boolean(body.featured),
     status: normalizeStatus(body.statut || body.status),
     slug: body.slug || slugify(body.titre || body.title),
@@ -66,8 +78,10 @@ export async function POST(request) {
     const { rows } = await db.query(
       `INSERT INTO stages
        (title, excerpt, content, cover_image, department, location, work_mode, duration,
-        contact_email, close_date, featured, status, slug, published_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        contact_email, close_date, supervisor, start_date, stage_type, main_group, languages,
+        about_club, about_mission, responsibilities, club_life, profile_searched, category, engagement,
+        featured, status, slug, published_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
        RETURNING *`,
       [
         body.title,
@@ -80,6 +94,18 @@ export async function POST(request) {
         body.duration,
         body.contact_email,
         body.close_date,
+        body.supervisor,
+        body.start_date,
+        body.stage_type,
+        body.main_group,
+        body.languages,
+        body.about_club,
+        body.about_mission,
+        body.responsibilities,
+        body.club_life,
+        body.profile_searched,
+        body.category,
+        body.engagement,
         body.featured,
         body.status,
         body.slug,

@@ -1,8 +1,9 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
-import { PlayerFormValues } from "@/types/club";
+import { uploadAsset } from "@/lib/upload-asset";
 import { normalizePlayerFormValues } from "@/lib/club/player-form";
+import { PlayerFormValues } from "@/types/club";
 
 interface PlayerFormProps {
   initialValues?: Partial<PlayerFormValues>;
@@ -43,6 +44,7 @@ export default function PlayerForm({
   });
   const [selectedFileName, setSelectedFileName] = useState("");
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -52,6 +54,7 @@ export default function PlayerForm({
     });
     setSelectedFileName("");
     setPhotoError(null);
+    setIsUploadingPhoto(false);
   }, [initialValues]);
 
   const updateField = <K extends keyof PlayerFormValues>(
@@ -63,6 +66,9 @@ export default function PlayerForm({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isUploadingPhoto) {
+      return;
+    }
     if (!formValues.photoUrl) {
       alert("La photo du joueur est obligatoire.");
       return;
@@ -74,7 +80,7 @@ export default function PlayerForm({
     fileInputRef.current?.click();
   };
 
-  const handlePhotoFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
       return;
@@ -85,20 +91,21 @@ export default function PlayerForm({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        setPhotoError("Impossible de charger l'image.");
-        return;
-      }
-      updateField("photoUrl", reader.result);
+    setIsUploadingPhoto(true);
+    try {
+      const uploaded = await uploadAsset(file, {
+        folder: "club/players",
+        kind: "image",
+      });
+      updateField("photoUrl", uploaded.url);
       setSelectedFileName(file.name);
       setPhotoError(null);
-    };
-    reader.onerror = () => {
-      setPhotoError("Impossible de lire ce fichier.");
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      setPhotoError(error instanceof Error ? error.message : "Impossible d'envoyer cette image.");
+    } finally {
+      setIsUploadingPhoto(false);
+      event.target.value = "";
+    }
   };
 
   return (
@@ -160,6 +167,11 @@ export default function PlayerForm({
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {selectedFileName || "No file chosen"}
                 </span>
+                {isUploadingPhoto ? (
+                  <span className="text-xs text-brand-500 dark:text-brand-400">
+                    Upload en cours...
+                  </span>
+                ) : null}
               </div>
             </div>
           </div>
@@ -242,11 +254,13 @@ export default function PlayerForm({
             className={selectClassName}
           >
             {[
-              { value: 'actif', label: 'Actif' },
-              { value: 'blesse', label: 'Blessé' },
-              { value: 'suspendu', label: 'Suspendu' },
-            ].map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
+              { value: "actif", label: "Actif" },
+              { value: "blesse", label: "Blesse" },
+              { value: "suspendu", label: "Suspendu" },
+            ].map((status) => (
+              <option key={status.value} value={status.value}>
+                {status.label}
+              </option>
             ))}
           </select>
         </div>
@@ -273,8 +287,6 @@ export default function PlayerForm({
             className={inputClassName}
           />
         </div>
-
-
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-3">
@@ -287,9 +299,10 @@ export default function PlayerForm({
         </button>
         <button
           type="submit"
-          className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600"
+          disabled={isUploadingPhoto}
+          className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {submitLabel}
+          {isUploadingPhoto ? "Upload..." : submitLabel}
         </button>
       </div>
     </form>

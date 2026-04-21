@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useRef } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { uploadAsset } from "@/lib/upload-asset";
 import { StaffFormValues, StaffRole } from "@/types/club";
 
 interface StaffFormProps {
@@ -34,6 +35,7 @@ export default function StaffForm({
   });
   const [selectedFileName, setSelectedFileName] = useState("");
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -43,6 +45,7 @@ export default function StaffForm({
     });
     setSelectedFileName("");
     setPhotoError(null);
+    setIsUploadingPhoto(false);
   }, [initialValues]);
 
   const updateField = <K extends keyof StaffFormValues>(
@@ -54,6 +57,9 @@ export default function StaffForm({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isUploadingPhoto) {
+      return;
+    }
     onSubmit(formValues);
   };
 
@@ -61,7 +67,7 @@ export default function StaffForm({
     fileInputRef.current?.click();
   };
 
-  const handlePhotoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
       return;
@@ -72,67 +78,28 @@ export default function StaffForm({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (typeof e.target?.result !== "string") {
-        setPhotoError("Impossible de charger l'image.");
-        return;
-      }
-      
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let width = img.width;
-        let height = img.height;
-        
-        // Redimensionner si c'est plus grand que 1600px (Très haute résolution pour la meilleure netteté possible)
-        const MAX_SIZE = 1600;
-        if (width > height && width > MAX_SIZE) {
-          height = Math.round((height * MAX_SIZE) / width);
-          width = MAX_SIZE;
-        } else if (height > MAX_SIZE) {
-          width = Math.round((width * MAX_SIZE) / height);
-          height = MAX_SIZE;
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        
-        // Un fond blanc au cas où c'est un PNG transparent
-        if (ctx) {
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, width, height);
-          ctx.drawImage(img, 0, 0, width, height);
-        }
-        
-        // Compresser en JPEG avec une qualité quasi-maximale (95%)
-        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.95);
-        
-        updateField("photoUrl", compressedDataUrl);
-        setSelectedFileName(file.name);
-        setPhotoError(null);
-      };
-      
-      img.onerror = () => {
-        setPhotoError("Fichier d'image corrompu.");
-      };
-      
-      img.src = e.target.result;
-    };
-    
-    reader.onerror = () => {
-      setPhotoError("Impossible de lire ce fichier.");
-    };
-    
-    reader.readAsDataURL(file);
+    setIsUploadingPhoto(true);
+    try {
+      const uploaded = await uploadAsset(file, {
+        folder: "club/staff",
+        kind: "image",
+      });
+      updateField("photoUrl", uploaded.url);
+      setSelectedFileName(file.name);
+      setPhotoError(null);
+    } catch (error) {
+      setPhotoError(error instanceof Error ? error.message : "Impossible d'envoyer cette image.");
+    } finally {
+      setIsUploadingPhoto(false);
+      event.target.value = "";
+    }
   };
 
   const roleOptions: StaffRole[] = ["Coach", "Assistant", "Admin", "Medical"];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="flex flex-col gap-4 mb-4">
+      <div className="mb-4 flex flex-col gap-4">
         <label className="text-sm font-medium text-gray-700 dark:text-gray-400">
           Photo du Staff
         </label>
@@ -163,12 +130,8 @@ export default function StaffForm({
             )}
           </div>
           <div>
-            <div className="flex flex-col gap-2 relative">
-              <input
-                type="hidden"
-                value={formValues.photoUrl}
-                name="photoUrl"
-              />
+            <div className="relative flex flex-col gap-2">
+              <input type="hidden" value={formValues.photoUrl} name="photoUrl" />
               <input
                 type="file"
                 accept="image/*"
@@ -187,6 +150,11 @@ export default function StaffForm({
             {selectedFileName && (
               <p className="mt-1 text-xs text-brand-600 dark:text-brand-400">
                 Fichier: {selectedFileName}
+              </p>
+            )}
+            {isUploadingPhoto && (
+              <p className="mt-1 text-xs text-brand-600 dark:text-brand-400">
+                Upload en cours...
               </p>
             )}
             {photoError && (
@@ -226,7 +194,6 @@ export default function StaffForm({
             ))}
           </select>
         </div>
-
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-3">
@@ -239,9 +206,10 @@ export default function StaffForm({
         </button>
         <button
           type="submit"
-          className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600"
+          disabled={isUploadingPhoto}
+          className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {submitLabel}
+          {isUploadingPhoto ? "Upload..." : submitLabel}
         </button>
       </div>
     </form>

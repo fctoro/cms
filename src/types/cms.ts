@@ -62,6 +62,18 @@ export interface CmsStage {
   duration: string;
   contactEmail: string;
   closeDate: string | null;
+  supervisor: string;
+  startDate: string | null;
+  stageType: string;
+  mainGroup: string;
+  languages: string;
+  aboutClub: string;
+  aboutMission: string;
+  responsibilities: string;
+  clubLife: string;
+  profileSearched: string;
+  category: string;
+  engagement: string;
   featured: boolean;
   status: PublishStatus;
   createdAt: string;

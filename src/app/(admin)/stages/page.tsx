@@ -2,12 +2,12 @@
 
 import { SectionCard, StatusBadge, formatDate, formatNumber } from "@/components/common/CmsShared";
 import PageBreadCrumb from "@/components/common/PageBreadCrumb";
+import Loader from "@/components/common/Loader";
 import { getAdminToken } from "@/lib/admin-auth";
 import { fetchAdminJson, mapDbStage } from "@/lib/cms-admin-client";
 import { CmsStage } from "@/types/cms";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import Loader from "@/components/common/Loader";
 
 export default function StagesPage() {
   const [stages, setStages] = useState<CmsStage[]>([]);
@@ -42,17 +42,17 @@ export default function StagesPage() {
 
   return (
     <div className="space-y-6">
-      <PageBreadCrumb pageTitle="Stages" />
+      <PageBreadCrumb pageTitle="Recrutement" />
 
       <SectionCard
-        title="Offres de stage"
+        title="Offres de recrutement"
         description="Publiez, ajustez ou cloturez vos opportunites."
         actions={
           <Link
             href="/stages/nouveau"
             className="rounded-lg bg-brand-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-brand-600"
           >
-            Nouveau stage
+            Nouveau recrutement
           </Link>
         }
       >
@@ -80,7 +80,7 @@ export default function StagesPage() {
           <table className="min-w-full text-left text-sm">
             <thead className="text-xs uppercase tracking-[0.16em] text-gray-500">
               <tr>
-                <th className="pb-3">Stage</th>
+                <th className="pb-3">Recrutement</th>
                 <th className="pb-3">Format</th>
                 <th className="pb-3">Statut</th>
                 <th className="pb-3">Cloture</th>
@@ -92,10 +92,12 @@ export default function StagesPage() {
               {loading ? (
                 <tr>
                   <td colSpan={6} className="py-12">
-                     <div className="flex flex-col items-center justify-center gap-4">
-                        <Loader />
-                        <p className="text-sm font-medium text-gray-400">Récupération des stages disponibles...</p>
-                     </div>
+                    <div className="flex flex-col items-center justify-center gap-4">
+                      <Loader />
+                      <p className="text-sm font-medium text-gray-400">
+                        Chargement des recrutements disponibles...
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : filteredStages.map((stage) => (

@@ -37,7 +37,7 @@ export default function DashboardPage() {
               Bonjour {currentUser?.name.split(" ")[0]}
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-500 dark:text-gray-400">
-              Le CMS gere vos articles, stages, partenaires et textes du site public sans changer
+              Le CMS gere vos articles, recrutements, partenaires et textes du site public sans changer
               la coque visuelle du dashboard.
             </p>
           </div>
@@ -52,7 +52,7 @@ export default function DashboardPage() {
               href="/stages/nouveau"
               className="rounded-lg border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
             >
-              Nouveau stage
+              Nouveau recrutement
             </Link>
           </div>
         </div>
@@ -60,10 +60,10 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="Articles publies" value={formatNumber(publishedArticles.length)} />
-        <MetricCard label="Stages actifs" value={formatNumber(publishedStages.length)} />
+        <MetricCard label="Recrutements actifs" value={formatNumber(publishedStages.length)} />
         <MetricCard label="Partenaires" value={formatNumber(partners.length)} />
         <MetricCard label="Vues articles" value={formatNumber(totalArticleViews)} />
-        <MetricCard label="Candidatures stages" value={formatNumber(totalStageApplications)} />
+        <MetricCard label="Candidatures recrutement" value={formatNumber(totalStageApplications)} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">

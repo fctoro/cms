@@ -14,14 +14,14 @@ export default function EditStagePage() {
   if (!stage) {
     return (
       <div className="rounded-2xl border border-error-200 bg-error-50 p-6 text-sm text-error-700 dark:border-error-900/40 dark:bg-error-900/10 dark:text-error-300">
-        Stage introuvable.
+        Recrutement introuvable.
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <PageBreadCrumb pageTitle="Modifier Stage" />
+      <PageBreadCrumb pageTitle="Modifier recrutement" />
       <CmsStageForm
         initialValue={stage}
         submitLabel="Enregistrer les changements"

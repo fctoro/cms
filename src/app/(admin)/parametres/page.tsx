@@ -200,7 +200,7 @@ export default function SiteSettingsPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Contenus mis en avant" description="Choisissez jusqu'a trois articles et trois stages.">
+      <SectionCard title="Contenus mis en avant" description="Choisissez jusqu'a trois articles et trois recrutements.">
         <div className="grid gap-6 xl:grid-cols-2">
           <div className="space-y-3">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Articles en vedette</p>
@@ -214,7 +214,7 @@ export default function SiteSettingsPage() {
             ))}
           </div>
           <div className="space-y-3">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Stages en vedette</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Recrutements en vedette</p>
             {publishedStages.map((stage) => (
               <ToggleInput
                 key={stage.id}

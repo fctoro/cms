@@ -18,7 +18,7 @@ export default function TrackingPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Vues articles" value={formatNumber(totalArticleViews)} />
-        <MetricCard label="Vues stages" value={formatNumber(totalStageViews)} />
+        <MetricCard label="Vues recrutement" value={formatNumber(totalStageViews)} />
         <MetricCard label="Candidatures" value={formatNumber(totalApplications)} />
         <MetricCard label="Clics partenaires" value={formatNumber(totalPartnerClicks)} />
       </div>
@@ -61,12 +61,12 @@ export default function TrackingPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Top stages" description="Offres les plus consultees.">
+        <SectionCard title="Top recrutements" description="Offres les plus consultees.">
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead className="text-xs uppercase tracking-[0.16em] text-gray-500">
                 <tr>
-                  <th className="pb-3">Stage</th>
+                  <th className="pb-3">Recrutement</th>
                   <th className="pb-3 text-right">Vues</th>
                   <th className="pb-3 text-right">Candidatures</th>
                   <th className="pb-3 text-right">Contacts</th>
@@ -146,7 +146,7 @@ export default function TrackingPage() {
                   </div>
                   <div className="text-right text-sm text-gray-500 dark:text-gray-400">
                     <p>{formatNumber(authoredArticles)} article(s)</p>
-                    <p>{formatNumber(authoredStages)} stage(s)</p>
+                    <p>{formatNumber(authoredStages)} recrutement(s)</p>
                   </div>
                 </div>
               );

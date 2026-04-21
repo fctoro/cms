@@ -4,13 +4,12 @@ import { CmsArticleForm } from "@/components/common/CmsForms";
 import PageBreadCrumb from "@/components/common/PageBreadCrumb";
 import { useCms } from "@/context/CmsContext";
 import { getAdminToken } from "@/lib/admin-auth";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function NewArticlePage() {
   const { users, currentUser } = useCms();
-  const router = useRouter();
   const [submitError, setSubmitError] = useState("");
+  const publicActualitesUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001"}/actualites`;
 
   return (
     <div className="space-y-6">
@@ -82,7 +81,7 @@ export default function NewArticlePage() {
             return;
           }
 
-          router.push("/articles");
+          window.location.assign(publicActualitesUrl);
         }}
       />
       {submitError ? (

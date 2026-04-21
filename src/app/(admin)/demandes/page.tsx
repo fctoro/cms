@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import PageBreadCrumb from "@/components/common/PageBreadCrumb";
 import { SectionCard } from "@/components/common/CmsShared";
@@ -9,6 +9,9 @@ import Loader from "@/components/common/Loader";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import { EyeIcon, TrashBinIcon, CheckCircleIcon } from "@/icons";
 import { useCms } from "@/context/CmsContext";
+import { getAdminToken } from "@/lib/admin-auth";
+import { mapDbStage } from "@/lib/cms-admin-client";
+import { CmsStage } from "@/types/cms";
 import Image from "next/image";
 
 // ─── Friendly field label mapping ───────────────────────────────────────────
@@ -71,6 +74,7 @@ const TYPE_LABELS: Record<string, { label: string; color: string }> = {
   contact: { label: "Message", color: "info" },
   fan: { label: "Devenir Fan", color: "success" },
   joueur: { label: "Inscription Joueur", color: "warning" },
+  stagiaire: { label: "Stagiaire", color: "info" },
 };
 
 function friendlyLabel(key: string) {
@@ -96,7 +100,63 @@ function friendlyValue(key: string, value: unknown): string {
   return String(value);
 }
 
+function formatDemandDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return `${date.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })} ${date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function flattenPayload(value: unknown, prefix = ""): Record<string, string> {
+  if (value === null || value === undefined) {
+    return prefix ? { [prefix]: "—" } : {};
+  }
+
+  if (Array.isArray(value)) {
+    if (value.every((item) => typeof item !== "object" || item === null)) {
+      return prefix ? { [prefix]: value.map((item) => friendlyValue(prefix, item)).join(", ") } : {};
+    }
+
+    return value.reduce<Record<string, string>>((acc, item, index) => {
+      const nestedPrefix = prefix ? `${prefix} ${index + 1}` : `${index + 1}`;
+      return { ...acc, ...flattenPayload(item, nestedPrefix) };
+    }, {});
+  }
+
+  if (typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>).reduce<Record<string, string>>((acc, [key, nested]) => {
+      const nextPrefix = prefix ? `${prefix} - ${friendlyLabel(key)}` : friendlyLabel(key);
+      return { ...acc, ...flattenPayload(nested, nextPrefix) };
+    }, {});
+  }
+
+  return prefix ? { [prefix]: friendlyValue(prefix, value) } : {};
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+type DemandeReply = {
+  role: string;
+  message: string;
+  subject?: string;
+  timestamp: string;
+};
+
+type DemandePayload = Record<string, unknown> & {
+  replies?: DemandeReply[];
+};
 
 type Demande = {
   id: string;
@@ -105,19 +165,111 @@ type Demande = {
   email: string | null;
   phone: string | null;
   message: string | null;
-  payload: Record<string, unknown> | null;
+  payload: DemandePayload | null;
   is_read: boolean;
   status: string | null;
   created_at: string;
 };
+
+function stageToDemande(stage: CmsStage): Demande {
+  return {
+    id: stage.id,
+    type: "stagiaire",
+    name: stage.title,
+    email: stage.contactEmail || null,
+    phone: null,
+    message: stage.excerpt || `${stage.metrics.applications} candidature(s) reçue(s).`,
+    payload: {
+      department: stage.department,
+      location: stage.location,
+      work_mode: stage.workMode,
+      duration: stage.duration,
+      close_date: stage.closeDate,
+      supervisor: stage.supervisor,
+      start_date: stage.startDate,
+      stage_type: stage.stageType,
+      main_group: stage.mainGroup,
+      languages: stage.languages,
+      category: stage.category,
+      engagement: stage.engagement,
+      views: stage.metrics.views,
+      applications: stage.metrics.applications,
+      contact_clicks: stage.metrics.contactClicks,
+      excerpt: stage.excerpt,
+    },
+    is_read: true,
+    status: stage.status,
+    created_at: stage.createdAt,
+  };
+}
+
+function buildExportRow(demande: Demande) {
+  return {
+    ID: demande.id,
+    Type: TYPE_LABELS[demande.type]?.label || demande.type,
+    "Statut lecture": demande.is_read ? "Lu" : "Nouveau",
+    "Statut demande": demande.status || "pending",
+    Nom: demande.name,
+    Email: demande.email || "",
+    Telephone: demande.phone || "",
+    Message: demande.message || "",
+    "Date creation": formatDemandDate(demande.created_at),
+    ...flattenPayload(demande.payload),
+  };
+}
+
+function downloadExcel(rows: Record<string, string>[], filename: string) {
+  const columns = Array.from(
+    rows.reduce((set, row) => {
+      Object.keys(row).forEach((key) => set.add(key));
+      return set;
+    }, new Set<string>()),
+  );
+
+  const tableHead = columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("");
+  const tableBody = rows
+    .map((row) => {
+      const cells = columns
+        .map((column) => `<td>${escapeHtml(String(row[column] ?? ""))}</td>`)
+        .join("");
+      return `<tr>${cells}</tr>`;
+    })
+    .join("");
+
+  const html = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+  </head>
+  <body>
+    <table>
+      <thead><tr>${tableHead}</tr></thead>
+      <tbody>${tableBody}</tbody>
+    </table>
+  </body>
+</html>`;
+
+  const blob = new Blob(["\ufeff", html], {
+    type: "application/vnd.ms-excel;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function DemandesPage() {
   const { refreshUnreadDemandesCount } = useCms();
   const [demandes, setDemandes] = useState<Demande[]>([]);
+  const [stageDemandes, setStageDemandes] = useState<Demande[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"contact" | "joueur" | "fan">("contact");
+  const [activeTab, setActiveTab] = useState<"contact" | "joueur" | "fan" | "stagiaire">("contact");
   const [selectedDemande, setSelectedDemande] = useState<Demande | null>(null);
 
   // Reply state
@@ -139,6 +291,7 @@ export default function DemandesPage() {
 
   // Chat UI state
   const [showDetails, setShowDetails] = useState(false);
+  const [yearFilter, setYearFilter] = useState("all");
 
   useEffect(() => {
     setMounted(true);
@@ -155,10 +308,27 @@ export default function DemandesPage() {
   const fetchDemandes = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/demandes");
-      if (res.ok) {
-        const json = await res.json();
+      const token = getAdminToken();
+      const stageHeaders = token ? { Authorization: `Bearer ${token}` } : undefined;
+
+      const [demandesRes, stagesRes] = await Promise.all([
+        fetch("/api/demandes"),
+        token ? fetch("/api/admin/stages", { headers: stageHeaders }) : Promise.resolve(null),
+      ]);
+
+      if (demandesRes.ok) {
+        const json = await demandesRes.json();
         setDemandes(json.data || []);
+      }
+
+      if (stagesRes?.ok) {
+        const json = await stagesRes.json();
+        const mappedStages = Array.isArray(json.data) ? json.data.map(mapDbStage) : [];
+        setStageDemandes(
+          mappedStages
+            .filter((stage: CmsStage) => stage.metrics.applications > 0)
+            .map(stageToDemande),
+        );
       }
     } catch (e) {
       console.error(e);
@@ -210,9 +380,19 @@ export default function DemandesPage() {
   const deleteDemande = async (id: string) => {
     if (!confirm("Voulez-vous vraiment supprimer cette demande définitivement ?")) return;
     try {
-      const res = await fetch(`/api/demandes?id=${id}`, { method: "DELETE" });
+      const token = getAdminToken();
+      const res = activeTab === "stagiaire"
+        ? await fetch(`/api/admin/stages/${id}`, {
+            method: "DELETE",
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          })
+        : await fetch(`/api/demandes?id=${id}`, { method: "DELETE" });
       if (res.ok) {
-        setDemandes((prev) => prev.filter((d) => d.id !== id));
+        if (activeTab === "stagiaire") {
+          setStageDemandes((prev) => prev.filter((d) => d.id !== id));
+        } else {
+          setDemandes((prev) => prev.filter((d) => d.id !== id));
+        }
         setSelectedDemande(null);
         refreshUnreadDemandesCount();
       }
@@ -243,7 +423,8 @@ export default function DemandesPage() {
         // Optimistically update local state to show the reply immediately
         setDemandes((prev) => prev.map(d => {
            if (d.id === selectedDemande.id) {
-              const newReplies = [...(d.payload?.replies || []), {
+              const existingReplies = Array.isArray(d.payload?.replies) ? d.payload.replies : [];
+              const newReplies = [...existingReplies, {
                  role: 'admin',
                  message: replyBody,
                  subject: replySubject,
@@ -298,17 +479,58 @@ export default function DemandesPage() {
     }
   };
 
-  const filteredDemandes = demandes.filter((d) => d.type === activeTab);
-  const unreadCountForTab = (type: string) => demandes.filter((d) => d.type === type && !d.is_read).length;
+  const allDemandes = useMemo(() => [...demandes, ...stageDemandes], [demandes, stageDemandes]);
+
+  const availableYears = useMemo(() => {
+    return Array.from(
+      new Set(
+        allDemandes
+          .filter((d) => d.type === activeTab)
+          .map((d) => new Date(d.created_at).getFullYear())
+          .filter((year) => Number.isFinite(year)),
+      ),
+    ).sort((a, b) => b - a);
+  }, [activeTab, allDemandes]);
+
+  useEffect(() => {
+    if (activeTab === "contact") {
+      setYearFilter("all");
+      return;
+    }
+
+    if (yearFilter !== "all" && !availableYears.includes(Number(yearFilter))) {
+      setYearFilter("all");
+    }
+  }, [activeTab, availableYears, yearFilter]);
+
+  const filteredDemandes = useMemo(() => {
+    return allDemandes.filter((d) => {
+      if (d.type !== activeTab) return false;
+      if (activeTab === "contact" || yearFilter === "all") return true;
+
+      const year = new Date(d.created_at).getFullYear();
+      return Number.isFinite(year) && year >= Number(yearFilter);
+    });
+  }, [activeTab, allDemandes, yearFilter]);
+  const unreadCountForTab = (type: string) => allDemandes.filter((d) => d.type === type && !d.is_read).length;
 
   const tabs = [
     { id: "contact" as const, label: "Messages" },
     { id: "joueur" as const, label: "Inscriptions Joueur" },
     { id: "fan" as const, label: "Devenir Fan" },
+    { id: "stagiaire" as const, label: "Stagiaire" },
   ];
 
   const typeInfo = (type: string) =>
     TYPE_LABELS[type] ?? { label: type.toUpperCase(), color: "info" };
+
+  const handleExport = () => {
+    const rows = filteredDemandes.map(buildExportRow);
+    if (rows.length === 0) return;
+
+    const suffix = yearFilter === "all" ? "toutes-annees" : `depuis-${yearFilter}`;
+    downloadExcel(rows, `${activeTab}-${suffix}.xls`);
+  };
 
   return (
     <div className="space-y-6">
@@ -343,7 +565,41 @@ export default function DemandesPage() {
 
       <SectionCard
         title={tabs.find(t => t.id === activeTab)?.label || ""}
-        description={`Consultez et gérez les ${activeTab === 'joueur' ? "inscriptions des nouveaux joueurs" : activeTab === 'fan' ? "demandes d'adhésion au club des fans" : "messages de contact"}.`}
+        description={`Consultez et gérez les ${
+          activeTab === "joueur"
+            ? "inscriptions des nouveaux joueurs"
+            : activeTab === "fan"
+              ? "demandes d'adhésion au club des fans"
+              : activeTab === "stagiaire"
+                ? "recrutements ayant reçu des candidatures depuis le site"
+                : "messages de contact"
+        }.`}
+        actions={
+          activeTab !== "contact" ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <select
+                value={yearFilter}
+                onChange={(event) => setYearFilter(event.target.value)}
+                className="h-11 min-w-[220px] rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-theme-xs outline-hidden transition focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              >
+                <option value="all">Toutes les années</option>
+                {availableYears.map((year) => (
+                  <option key={year} value={String(year)}>
+                    A partir de {year}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={filteredDemandes.length === 0}
+                className="inline-flex h-11 items-center justify-center rounded-lg bg-success-600 px-4 text-sm font-medium text-white transition hover:bg-success-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Exporter Excel
+              </button>
+            </div>
+          ) : null
+        }
       >
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
           <div className="max-w-full overflow-x-auto">
@@ -387,7 +643,9 @@ export default function DemandesPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="py-3 text-sm">
-                          <Badge size="sm" color={color as any} className="mb-1">{label}</Badge>
+                          <div className="mb-1">
+                            <Badge size="sm" color={color as any}>{label}</Badge>
+                          </div>
                           <div className="text-gray-500 dark:text-gray-400 line-clamp-1 w-[180px] text-xs">
                             {d.message || "—"}
                           </div>
@@ -406,16 +664,24 @@ export default function DemandesPage() {
                         </TableCell>
                         <TableCell className="py-3">
                           <div className="flex items-center gap-3">
-                             {d.type === 'joueur' && (
+                             {(d.type === "joueur" || d.type === "stagiaire") && (
                                 <button 
-                                   onClick={(e) => { e.stopPropagation(); window.open(`/api/demandes/pdf?id=${d.id}`, '_blank'); }}
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     window.open(
+                                       d.type === "stagiaire"
+                                         ? `/api/stages/pdf?id=${d.id}`
+                                         : `/api/demandes/pdf?id=${d.id}`,
+                                       "_blank",
+                                     );
+                                   }}
                                    className="text-gray-500 hover:text-brand-500 transition-colors" 
                                    title="Télécharger Dossier PDF"
                                 >
                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                                 </button>
                              )}
-                             <button onClick={() => { setSelectedDemande(d); if (!d.is_read) markAsRead(d.id, false); }}
+                             <button onClick={() => { setSelectedDemande(d); if (!d.is_read && d.type !== "stagiaire") markAsRead(d.id, false); }}
                                className="text-gray-500 hover:text-brand-500 transition-colors" title="Voir & Répondre">
                                <EyeIcon className="h-5 w-5" />
                              </button>
@@ -478,7 +744,7 @@ export default function DemandesPage() {
                      )}
 
                      {/* CONVERSATION HISTORY */}
-                     {selectedDemande.payload?.replies?.map((reply: any, idx: number) => (
+                     {selectedDemande.payload?.replies?.map((reply, idx) => (
                         <div key={idx} className={`flex flex-col gap-1 max-w-[85%] animate-in ${reply.role === 'admin' ? 'ml-auto items-end' : 'items-start'} duration-300`}>
                            <div className={`text-[10px] text-gray-400 font-bold mb-1 uppercase tracking-tighter ${reply.role === 'admin' ? 'text-right mr-3' : 'ml-3'}`}>
                               {reply.role === 'admin' ? 'Vous' : 'Réponse Client'}
@@ -512,7 +778,7 @@ export default function DemandesPage() {
                      )}
                   </div>
 
-                  {selectedDemande.type !== "fan" && selectedDemande.email ? (
+                  {selectedDemande.type !== "fan" && selectedDemande.type !== "stagiaire" && selectedDemande.email ? (
                      <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 space-y-3">
                         <input
                            type="text"
@@ -592,13 +858,18 @@ export default function DemandesPage() {
                      )}
 
                      <div className="pt-4 space-y-3">
-                        {selectedDemande.type === "joueur" && (
+                        {(selectedDemande.type === "joueur" || selectedDemande.type === "stagiaire") && (
                            <button 
-                              onClick={() => window.open(`/api/demandes/pdf?id=${selectedDemande.id}`, '_blank')}
+                              onClick={() => window.open(
+                                selectedDemande.type === "stagiaire"
+                                  ? `/api/stages/pdf?id=${selectedDemande.id}`
+                                  : `/api/demandes/pdf?id=${selectedDemande.id}`,
+                                '_blank',
+                              )}
                               className="w-full py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-[11px] font-black uppercase tracking-widest text-white transition-all shadow-lg shadow-brand-500/20 flex items-center justify-center gap-2 mb-2"
                            >
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                              Dossier PDF
+                              {selectedDemande.type === "stagiaire" ? "Fiche PDF" : "Dossier PDF"}
                            </button>
                         )}
                         <button 
