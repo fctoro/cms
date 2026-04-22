@@ -15,13 +15,15 @@ import {
   PlugInIcon,
   TableIcon,
   UserCircleIcon,
+  VideoIcon,
 } from "../icons/index";
 
 type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
-  subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
+  restricted?: boolean;
+  subItems?: { name: string; path: string; pro?: boolean; new?: boolean; restricted?: boolean }[];
 };
 
 const navItems: NavItem[] = [
@@ -61,6 +63,11 @@ const navItems: NavItem[] = [
     icon: <DocsIcon />,
     name: "Pages / Slides",
     path: "/pages",
+  },
+  {
+    icon: <VideoIcon />,
+    name: "Match en Direct",
+    path: "/live",
   },
 
   {

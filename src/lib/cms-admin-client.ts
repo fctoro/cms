@@ -23,10 +23,7 @@ function mapRole(value: string | null | undefined): CmsUser["role"] {
   if (value === "super_admin") {
     return "super_admin";
   }
-  if (value === "editor" || value === "author") {
-    return value;
-  }
-  return "admin";
+  return "moderator";
 }
 
 export function mapDbArticle(row: Record<string, unknown>): CmsArticle {

@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 
 const bcrypt = require("bcrypt");
 const db = require("@/server/db");
-const { requireAuth } = require("@/server/auth");
+const { requireAuth, requireSuperAdmin } = require("@/server/auth");
 
 export const runtime = "nodejs";
 
 export async function PUT(request, { params }) {
   const auth = requireAuth(request);
   if (auth.error) return auth.error;
+  const forbidden = requireSuperAdmin(auth.user);
+  if (forbidden) return forbidden;
   const { id } = await params;
   const body = await request.json();
   try {
@@ -51,6 +53,8 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   const auth = requireAuth(request);
   if (auth.error) return auth.error;
+  const forbidden = requireSuperAdmin(auth.user);
+  if (forbidden) return forbidden;
   try {
     const { id } = await params;
     const { rowCount } = await db.query("DELETE FROM admin_users WHERE id = $1", [id]);

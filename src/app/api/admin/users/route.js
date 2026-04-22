@@ -9,6 +9,8 @@ export const runtime = "nodejs";
 export async function GET(request) {
   const auth = requireAuth(request);
   if (auth.error) return auth.error;
+  const forbidden = requireSuperAdmin(auth.user);
+  if (forbidden) return forbidden;
   try {
     const { rows } = await db.query("SELECT * FROM admin_users ORDER BY created_at DESC");
     return NextResponse.json({ data: rows });
