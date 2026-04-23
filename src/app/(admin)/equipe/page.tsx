@@ -275,6 +275,25 @@ export default function EquipePage() {
                 </div>
               </div>
 
+              <div>
+                <label className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 dark:border-gray-800 px-4 py-3 cursor-pointer">
+                  <span className="text-sm font-medium">Statut du compte (Actif)</span>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({...formData, active: !formData.active})}
+                    className={`relative h-6 w-11 rounded-full transition ${
+                      formData.active ? "bg-brand-500" : "bg-gray-300 dark:bg-gray-700"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${
+                        formData.active ? "left-[22px]" : "left-0.5"
+                      }`}
+                    />
+                  </button>
+                </label>
+              </div>
+
               {error && (
                 <div className="text-sm text-red-500 font-medium">{error}</div>
               )}
