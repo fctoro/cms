@@ -30,13 +30,13 @@ export default function AdminLayout({
     }
 
     // Role-based protection for routes
-    const superAdminOnlyPaths = ["/equipe", "/parametres"];
+    const superAdminOnlyPaths = ["/equipe", "/parametres", "/demandes", "/dashboard", "/stages"];
     const isRestricted = superAdminOnlyPaths.some(path => 
       pathname === path || pathname.startsWith(`${path}/`)
     );
 
     if (isRestricted && currentUser.role !== "super_admin") {
-      router.replace("/dashboard");
+      router.replace("/articles");
     }
   }, [currentUser, hydrated, pathname, router]);
 

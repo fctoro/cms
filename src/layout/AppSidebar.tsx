@@ -31,11 +31,13 @@ const navItems: NavItem[] = [
     icon: <GridIcon />,
     name: "Dashboard",
     path: "/dashboard",
+    restricted: true,
   },
   {
     icon: <DocsIcon />,
     name: "Demandes",
     path: "/demandes",
+    restricted: true,
   },
   {
     icon: <UserCircleIcon />,
@@ -48,6 +50,7 @@ const navItems: NavItem[] = [
   {
     icon: <BoxCubeIcon />,
     name: "Recrutement",
+    restricted: true,
     subItems: [
       { name: "Tous les recrutements", path: "/stages" },
       { name: "Nouveau recrutement", path: "/stages/nouveau" },
@@ -348,7 +351,7 @@ const AppSidebar: React.FC = () => {
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link href="/dashboard">
+        <Link href={currentUser?.role === "super_admin" ? "/dashboard" : "/articles"}>
           {isExpanded || isHovered || isMobileOpen ? (
             <div className="flex items-center gap-3">
               <Image

@@ -65,7 +65,7 @@ const AppHeader: React.FC = () => {
             )}
           </button>
 
-          <Link href="/dashboard" className="lg:hidden">
+          <Link href={currentUser?.role === "super_admin" ? "/dashboard" : "/articles"} className="lg:hidden">
             <div className="flex items-center gap-2">
               <Image
                 width={36}
