@@ -28,6 +28,8 @@ export default function NewTournamentWizard() {
     selectedTeamIds: [] as string[],
   });
 
+  const [configMode, setConfigMode] = useState<"auto" | "manual">("auto");
+
   // Teams Data
   const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
   const [searchTeam, setSearchTeam] = useState("");
@@ -121,15 +123,18 @@ export default function NewTournamentWizard() {
 
       if (!teamsRes.ok) throw new Error("Erreur lors de l'inscription des équipes");
 
-      // 3. Générer le tirage au sort (2 poules de 4)
-      const drawRes = await fetch(`/api/tournaments/${tournamentId}/draw`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
+      // 3. Générer le tirage au sort (2 poules de 4) ou rediriger vers config manuelle
+      if (configMode === "auto") {
+        const drawRes = await fetch(`/api/tournaments/${tournamentId}/draw`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
 
-      if (!drawRes.ok) throw new Error("Erreur lors du tirage automatique");
-
-      router.push(`/club/flag-day/${tournamentId}`);
+        if (!drawRes.ok) throw new Error("Erreur lors du tirage automatique");
+        router.push(`/club/flag-day/${tournamentId}`);
+      } else {
+        router.push(`/club/flag-day/${tournamentId}/configuration`);
+      }
     } catch (err: any) {
       setError(err.message || "Une erreur est survenue");
       setLoading(false);
@@ -303,8 +308,41 @@ export default function NewTournamentWizard() {
                 <span className="text-gray-400">Équipes engagées</span>
                 <span className="font-bold">{formData.selectedTeamIds.length} équipes</span>
               </div>
-              <div className="mt-8 p-6 bg-brand-500 text-white rounded-2xl text-sm italic">
-                En cliquant sur "Générer", le système va répartir automatiquement les équipes en 2 poules de 4 et créer le calendrier complet des matchs.
+
+              <div className="pt-8 border-t border-gray-100 dark:border-gray-800 space-y-4">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Mode de configuration</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setConfigMode("auto")}
+                    className={cn(
+                      "p-4 rounded-2xl border-2 transition-all text-left",
+                      configMode === "auto" 
+                        ? "border-brand-500 bg-brand-50/50 dark:bg-brand-500/10" 
+                        : "border-gray-100 dark:border-gray-800 hover:border-gray-200"
+                    )}
+                  >
+                    <p className={cn("font-bold", configMode === "auto" ? "text-brand-500" : "text-gray-700 dark:text-gray-300")}>Automatique</p>
+                    <p className="text-[10px] text-gray-500 mt-1">Le système crée les poules et le calendrier pour vous.</p>
+                  </button>
+                  <button
+                    onClick={() => setConfigMode("manual")}
+                    className={cn(
+                      "p-4 rounded-2xl border-2 transition-all text-left",
+                      configMode === "manual" 
+                        ? "border-brand-500 bg-brand-50/50 dark:bg-brand-500/10" 
+                        : "border-gray-100 dark:border-gray-800 hover:border-gray-200"
+                    )}
+                  >
+                    <p className={cn("font-bold", configMode === "manual" ? "text-brand-500" : "text-gray-700 dark:text-gray-300")}>Manuel</p>
+                    <p className="text-[10px] text-gray-500 mt-1">Vous gérez vos poules et programmez vos matchs librement.</p>
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 p-6 bg-brand-500/10 text-brand-600 dark:text-brand-400 rounded-2xl text-sm italic border border-brand-500/20">
+                {configMode === "auto" 
+                  ? "Le système va répartir automatiquement les équipes en 2 poules de 4 et créer le calendrier complet des matchs."
+                  : "Vous allez être redirigé vers l'interface de configuration pour créer vos groupes et programmer vos matchs."}
               </div>
             </div>
           </SectionCard>
@@ -338,7 +376,7 @@ export default function NewTournamentWizard() {
               disabled={loading}
               className="flex-[2] py-4 px-8 rounded-2xl bg-brand-500 text-white font-bold hover:bg-brand-600 transition-all outline-none shadow-xl shadow-brand-500/20 disabled:opacity-50"
             >
-              {loading ? "Génération en cours..." : "Générer le Tirage"}
+              {loading ? "Initialisation..." : configMode === "auto" ? "Générer le Tirage" : "Créer et Configurer"}
             </button>
           )}
         </div>

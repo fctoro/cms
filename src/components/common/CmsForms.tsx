@@ -85,7 +85,7 @@ const emptyUser: CmsUser = {
   name: "",
   email: "",
   password: "",
-  role: "author",
+  role: "moderator",
   title: "",
   avatar: "",
   bio: "",
@@ -677,9 +677,8 @@ export function CmsUserForm({
                 value={form.role}
                 onChange={(event) => updateField("role", event.target.value as CmsUser["role"])}
               >
-                <option value="admin">Admin</option>
-                <option value="editor">Editor</option>
-                <option value="author">Author</option>
+                <option value="super_admin">Super Admin</option>
+                <option value="moderator">Moderateur</option>
               </SelectInput>
             </div>
           ) : null}

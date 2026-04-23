@@ -83,13 +83,13 @@ export default function DashboardPage() {
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {[...articles.slice(0, 3), ...stages.slice(0, 3)].map((entry) => {
-                  const isArticle = "category" in entry;
+                  const isArticle = !("department" in entry);
                   const href = isArticle
                     ? `/articles/${entry.id}/modifier`
                     : `/stages/${entry.id}/modifier`;
                   const metric = isArticle
-                    ? `${formatNumber(entry.metrics.views)} vues`
-                    : `${formatNumber(entry.metrics.applications)} candidatures`;
+                    ? `${formatNumber((entry as CmsArticle).metrics.views)} vues`
+                    : `${formatNumber((entry as CmsStage).metrics.applications)} candidatures`;
 
                   return (
                     <tr key={entry.id}>
@@ -98,7 +98,7 @@ export default function DashboardPage() {
                           {entry.title}
                         </Link>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          {isArticle ? entry.category : entry.department}
+                          {isArticle ? (entry as CmsArticle).category : (entry as CmsStage).department}
                         </p>
                       </td>
                       <td className="py-4">

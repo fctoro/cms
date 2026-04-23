@@ -103,3 +103,53 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function POST(request, { params }) {
+  try {
+    const { id: competitionId } = await params;
+    const { teamId, groupName, categoryId } = await request.json();
+
+    if (!teamId || !groupName || !categoryId) {
+      return NextResponse.json({ error: "Données manquantes" }, { status: 400 });
+    }
+
+    // On récupère d'abord pour voir si ça existe déjà (car pas de contrainte unique garantie dans le schema.sql)
+    const { data: existing } = await supabase
+      .from("flagday_standings")
+      .select("id")
+      .eq("category_id", categoryId)
+      .eq("team_id", teamId)
+      .single();
+    
+    if (existing) {
+      await supabase.from("flagday_standings").update({ group_name: groupName }).eq("id", existing.id);
+    } else {
+      await supabase.from("flagday_standings").insert({ category_id: categoryId, team_id: teamId, group_name: groupName });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Erreur [POST /api/tournaments/[id]/standings]:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request, { params }) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const teamId = searchParams.get("teamId");
+    const categoryId = searchParams.get("categoryId");
+
+    const { error } = await supabase
+      .from("flagday_standings")
+      .delete()
+      .eq("category_id", categoryId)
+      .eq("team_id", teamId);
+
+    if (error) throw error;
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Erreur [DELETE /api/tournaments/[id]/standings]:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

@@ -5,36 +5,40 @@ export async function POST(request, { params }) {
   try {
     const { id: competitionId } = await params;
     const body = await request.json();
-    const { matchId, homeScore, awayScore, scorers } = body;
+    const { matchId, homeScore, awayScore, scorers, ...metadata } = body;
 
-    // 1. Mettre à jour le score du match
-    const { data: currentMatch, error: matchError } = await supabase
-      .from("flagday_matches")
-      .update({
-        home_score: homeScore,
-        away_score: awayScore,
-        status: "finished",
-      })
-      .eq("id", matchId)
-      .select()
-      .single();
+    // 1. Création ou Mise à jour de score
+    if (matchId) {
+      // MISE À JOUR DE SCORE (Comportement existant)
+      const { data: currentMatch, error: matchError } = await supabase
+        .from("flagday_matches")
+        .update({
+          home_score: homeScore,
+          away_score: awayScore,
+          status: "finished",
+        })
+        .eq("id", matchId)
+        .select()
+        .single();
 
-    if (matchError) throw matchError;
+      if (matchError) throw matchError;
 
-    // 2. Enregistrer les buteurs
-    if (scorers && Array.isArray(scorers)) {
-      await supabase.from("flagday_match_scorers").delete().eq("match_id", matchId);
-      if (scorers.length > 0) {
-        await supabase.from("flagday_match_scorers").insert(
-          scorers.map((s) => ({
-            match_id: matchId,
-            player_name: s.playerName,
-            team_name: s.teamName,
-            goals: s.goals || 1,
-          }))
-        );
+      // 2. Enregistrer les buteurs
+      if (scorers && Array.isArray(scorers)) {
+        await supabase.from("flagday_match_scorers").delete().eq("match_id", matchId);
+        if (scorers.length > 0) {
+          await supabase.from("flagday_match_scorers").insert(
+            scorers.map((s) => ({
+              match_id: matchId,
+              player_name: s.playerName,
+              team_name: s.teamName,
+              goals: s.goals || 1,
+            }))
+          );
+        }
       }
-    }
+      
+      // ... suite du calcul des standings (on le garde dans la condition if (matchId))
 
     // 3. RECULCUL ET MISE À JOUR DU CLASSEMENT (STANDINGS)
     if (currentMatch.round.includes("Groupe")) {
@@ -191,13 +195,70 @@ export async function POST(request, { params }) {
        await supabase.from("flagday_competitions").update({ status: 'completed' }).eq("id", competitionId);
     }
 
-    return NextResponse.json({ data: currentMatch, success: true });
+      return NextResponse.json({ data: currentMatch, success: true });
+    } else {
+      // CRÉATION MANUELLE DE MATCH
+      const { data, error } = await supabase
+        .from("flagday_matches")
+        .insert({
+          competition_id: competitionId,
+          round: metadata.round,
+          kickoff: metadata.kickoff,
+          home_team_id: metadata.home_team_id,
+          away_team_id: metadata.away_team_id,
+          venue: metadata.venue || "Terrain Principal",
+          status: metadata.status || "scheduled"
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return NextResponse.json({ data, success: true });
+    }
   } catch (error) {
-    console.error("Erreur:", error);
+    console.error("Erreur [POST /api/tournaments/[id]/matches]:", error);
     return NextResponse.json(
-      { error: "Erreur lors de la mise à jour du match" },
+      { error: "Erreur lors de l'opération sur le match" },
       { status: 500 }
     );
+  }
+}
+
+export async function PATCH(request, { params }) {
+  try {
+    const body = await request.json();
+    const { matchId, ...updates } = body;
+
+    const { data, error } = await supabase
+      .from("flagday_matches")
+      .update(updates)
+      .eq("id", matchId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return NextResponse.json({ data, success: true });
+  } catch (error) {
+    console.error("Erreur [PATCH /api/tournaments/[id]/matches]:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request, { params }) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const matchId = searchParams.get("matchId");
+
+    const { error } = await supabase
+      .from("flagday_matches")
+      .delete()
+      .eq("id", matchId);
+
+    if (error) throw error;
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Erreur [DELETE /api/tournaments/[id]/matches]:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 

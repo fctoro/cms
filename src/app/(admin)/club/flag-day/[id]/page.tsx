@@ -171,6 +171,13 @@ export default function TournamentPage() {
             </button>
           ))}
         </div>
+
+        <button 
+          onClick={() => router.push(`/club/flag-day/${tournamentId}/configuration`)}
+          className="px-6 py-2.5 rounded-xl text-sm font-bold bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-xl hover:scale-105 transition-all"
+        >
+          Configurer
+        </button>
       </div>
 
       {/* TABS CONTENT */}
