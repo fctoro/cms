@@ -1,0 +1,943 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+import {
+  clearAdminSession,
+  getAdminSession,
+  getAdminToken,
+} from "@/lib/admin-auth";
+import {
+  AuthResponse,
+  CmsArticle,
+  CmsDataSnapshot,
+  CmsPartner,
+  CmsStage,
+  CmsUser,
+  HomePageSettings,
+  SaveUserResponse,
+  SignInPayload,
+  SiteSettings,
+} from "@/types/cms";
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+
+type ArticleInput = Omit<CmsArticle, "createdAt" | "updatedAt" | "publishedAt" | "slug"> & {
+  slug?: string;
+};
+type StageInput = Omit<CmsStage, "createdAt" | "updatedAt" | "publishedAt" | "slug"> & {
+  slug?: string;
+};
+
+interface CmsAlert {
+  id: string;
+  title: string;
+  description: string;
+  href: string;
+}
+
+interface CmsContextValue extends CmsDataSnapshot {
+  hydrated: boolean;
+  currentUser: CmsUser | null;
+  publishedArticles: CmsArticle[];
+  publishedStages: CmsStage[];
+  alerts: CmsAlert[];
+  canManageUsers: boolean;
+  signIn: (payload: SignInPayload) => AuthResponse;
+  signOut: () => void;
+  saveArticle: (input: ArticleInput) => CmsArticle;
+  deleteArticle: (articleId: string) => void;
+  saveStage: (input: StageInput) => CmsStage;
+  deleteStage: (stageId: string) => void;
+  savePartner: (input: CmsPartner) => CmsPartner;
+  deletePartner: (partnerId: string) => void;
+  saveUser: (input: CmsUser) => Promise<SaveUserResponse>;
+  deleteUser: (userId: string) => Promise<SaveUserResponse>;
+  updateHomePage: (patch: Partial<HomePageSettings>) => void;
+  updateSiteSettings: (patch: Partial<SiteSettings>) => void;
+  trackArticleView: (articleId: string) => void;
+  trackArticleLinkClick: (articleId: string) => void;
+  trackStageView: (stageId: string) => void;
+  trackStageApplication: (stageId: string) => void;
+  trackStageContact: (stageId: string) => void;
+  trackPartnerClick: (partnerId: string) => void;
+  trackHomeVisit: () => void;
+  trackHomeCta: () => void;
+  unreadDemandesCount: number;
+  refreshUnreadDemandesCount: () => Promise<void>;
+}
+
+const defaultHomePage: HomePageSettings = {
+  heroBadge: "FC Toro CMS",
+  heroTitle: "Pilotez vos contenus depuis le CMS.",
+  heroSubtitle: "Les articles visibles sur cette page sont charges depuis la base de donnees.",
+  heroPrimaryCtaLabel: "Voir les articles",
+  heroPrimaryCtaUrl: "#articles",
+  heroSecondaryCtaLabel: "Connexion CMS",
+  heroSecondaryCtaUrl: "/signin",
+  heroBackgroundImage: "/images/grid-image/image-01.png",
+  aboutTitle: "Contenus centralises",
+  aboutBody: "Le site public lit maintenant les articles depuis votre API Next et PostgreSQL.",
+  articleSectionTitle: "Articles publies",
+  articleSectionIntro: "Les articles ci-dessous proviennent directement de votre base.",
+  stageSectionTitle: "Stages",
+  stageSectionIntro: "Aucune source de base n'est encore branchee pour les stages.",
+  partnerSectionTitle: "Partenaires",
+  partnerSectionIntro: "Aucune source de base n'est encore branchee pour les partenaires.",
+  metrics: [],
+  featuredArticleIds: [],
+  featuredStageIds: [],
+  visits: 0,
+  ctaClicks: 0,
+};
+
+const defaultSiteSettings: SiteSettings = {
+  siteName: "FC Toro CMS",
+  publicTagline: "Gestion editoriale connectee a PostgreSQL",
+  primaryEmail: "contact@fctoro.cms",
+  phone: "+509 0000-0000",
+  address: "Port-au-Prince",
+  footerText: "Le contenu editorial public est synchronise avec la base de donnees.",
+  partnerPageTitle: "Partenaires",
+  partnerPageIntro: "Section en attente de branchement base de donnees.",
+  articlePageTitle: "Articles",
+  articlePageIntro: "Les articles de cette page proviennent de PostgreSQL.",
+  stagePageTitle: "Stages",
+  stagePageIntro: "Section en attente de branchement base de donnees.",
+};
+
+const initialData: CmsDataSnapshot = {
+  articles: [],
+  stages: [],
+  partners: [],
+  users: [],
+  homePage: defaultHomePage,
+  siteSettings: defaultSiteSettings,
+};
+
+const CmsContext = createContext<CmsContextValue | null>(null);
+
+function mapStatus(value: string | null | undefined): CmsArticle["status"] {
+  switch (value) {
+    case "publie":
+    case "published":
+      return "published";
+    case "revision":
+    case "review":
+      return "review";
+    case "archive":
+    case "archived":
+      return "archived";
+    default:
+      return "draft";
+  }
+}
+
+function mapRole(value: string | null | undefined): CmsUser["role"] {
+  if (value === "super_admin") {
+    return "super_admin";
+  }
+  return "moderator";
+}
+
+function mapDbArticle(row: Record<string, unknown>): CmsArticle {
+  return {
+    id: String(row.id ?? ""),
+    slug: String(row.slug ?? ""),
+    title: String(row.title_fr ?? row.titre_fr ?? row.title ?? ""),
+    excerpt: String(row.excerpt_fr ?? row.extrait_fr ?? row.excerpt ?? ""),
+    body: String(row.content_fr ?? row.contenu_fr ?? row.body ?? row.excerpt_fr ?? row.extrait_fr ?? ""),
+    coverImage: String(row.cover_image ?? row.photo_couverture ?? row.coverImage ?? "/images/grid-image/image-01.png"),
+    category: String(row.category ?? row.categorie ?? row.category ?? "Articles"),
+    tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
+    authorId: String(row.auteur_id ?? row.authorId ?? row.auteur ?? ""),
+    featured: Boolean(row.featured),
+    status: mapStatus(String(row.status ?? row.statut ?? "")),
+    seoTitle: String(row.seo_title ?? row.titre_en ?? row.seoTitle ?? row.titre_fr ?? ""),
+    seoDescription: String(row.seo_description ?? row.seoDescription ?? row.extrait_fr ?? ""),
+    createdAt: String(row.created_at ?? row.date_creation ?? row.createdAt ?? new Date().toISOString()),
+    updatedAt: String(
+      row.updated_at ?? row.date_modification ?? row.updatedAt ?? row.created_at ?? row.date_creation ?? new Date().toISOString(),
+    ),
+    publishedAt: row.published_at ? String(row.published_at) : row.date_publication ? String(row.date_publication) : null,
+    metrics: {
+      views: Number(row.views ?? 0),
+      linkClicks: Number(row.link_clicks ?? row.linkClicks ?? 0),
+      shares: Number(row.shares ?? 0),
+      leads: Number(row.leads ?? 0),
+    },
+  };
+}
+
+function mapDbStage(row: Record<string, unknown>): CmsStage {
+  return {
+    id: String(row.id ?? ""),
+    slug: String(row.slug ?? ""),
+    title: String(row.title ?? row.titre ?? ""),
+    excerpt: String(row.excerpt ?? row.extrait ?? ""),
+    body: String(row.content ?? row.contenu ?? ""),
+    coverImage: String(row.cover_image ?? row.photo_couverture ?? "/images/grid-image/image-01.png"),
+    department: String(row.department ?? row.departement ?? ""),
+    location: String(row.location ?? ""),
+    workMode: (row.work_mode as CmsStage["workMode"]) || "hybrid",
+    duration: String(row.duration ?? ""),
+    contactEmail: String(row.contact_email ?? row.contactEmail ?? ""),
+    closeDate: row.close_date ? String(row.close_date) : null,
+    supervisor: String(row.supervisor ?? ""),
+    startDate: row.start_date ? String(row.start_date) : null,
+    stageType: String(row.stage_type ?? ""),
+    mainGroup: String(row.main_group ?? ""),
+    languages: String(row.languages ?? ""),
+    aboutClub: String(row.about_club ?? ""),
+    aboutMission: String(row.about_mission ?? ""),
+    responsibilities: String(row.responsibilities ?? ""),
+    clubLife: String(row.club_life ?? ""),
+    profileSearched: String(row.profile_searched ?? ""),
+    category: String(row.category ?? ""),
+    engagement: String(row.engagement ?? ""),
+    featured: Boolean(row.featured),
+    status: mapStatus(String(row.status ?? row.statut ?? "")),
+    createdAt: String(row.created_at ?? row.date_creation ?? new Date().toISOString()),
+    updatedAt: String(row.updated_at ?? row.date_modification ?? row.date_creation ?? new Date().toISOString()),
+    publishedAt: row.published_at ? String(row.published_at) : row.date_publication ? String(row.date_publication) : null,
+    metrics: {
+      views: Number(row.views ?? 0),
+      applications: Number(row.applications ?? 0),
+      contactClicks: Number(row.contact_clicks ?? 0),
+    },
+  };
+}
+
+function mapDbPartner(row: Record<string, unknown>): CmsPartner {
+  return {
+    id: String(row.id ?? ""),
+    name: String(row.name ?? row.nom ?? ""),
+    website: String(row.website ?? ""),
+    logo: String(row.logo ?? ""),
+    category: String(row.category ?? row.categorie ?? "Media"),
+    tier: (row.tier as CmsPartner["tier"]) || "silver",
+    description: String(row.description ?? ""),
+    featured: Boolean(row.featured),
+    createdAt: String(row.created_at ?? row.date_creation ?? new Date().toISOString()),
+    clicks: Number(row.clicks ?? 0),
+  };
+}
+
+function mapDbUser(row: Record<string, unknown>): CmsUser {
+  return {
+    id: String(row.id ?? ""),
+    name: String(row.name ?? row.nom ?? ""),
+    email: String(row.email ?? ""),
+    password: "",
+    role: mapRole(String(row.role ?? "")),
+    title: String(row.title ?? ""),
+    avatar: String(row.avatar ?? "/images/user/owner.jpg"),
+    bio: String(row.bio ?? ""),
+    active: Boolean(row.active ?? row.actif ?? true),
+    lastLoginAt: row.last_login_at ? String(row.last_login_at) : null,
+  };
+}
+
+function createCurrentUserFromSession() {
+  const session = getAdminSession();
+  if (!session?.user) {
+    return null;
+  }
+
+  return {
+    ...session.user,
+    role: mapRole(session.user.role),
+    avatar: session.user.avatar || "/images/user/owner.jpg",
+    title: session.user.title || "Administration",
+    bio: session.user.bio || "",
+    password: "",
+    active: true,
+  } satisfies CmsUser;
+}
+
+export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
+  const pathname = usePathname();
+  const [data, setData] = useState<CmsDataSnapshot>(initialData);
+  const [currentUser, setCurrentUser] = useState<CmsUser | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [unreadDemandesCount, setUnreadDemandesCount] = useState(0);
+
+  useEffect(() => {
+    const validateSession = async () => {
+      const sessionUser = createCurrentUserFromSession();
+      const token = getAdminToken();
+
+      if (!sessionUser || !token) {
+        clearAdminSession();
+        setCurrentUser(null);
+        setHydrated(true);
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/admin/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Session invalide");
+        }
+
+        const payload = await response.json();
+        setCurrentUser(mapDbUser(payload.data));
+      } catch {
+        clearAdminSession();
+        setCurrentUser(null);
+      } finally {
+        setHydrated(true);
+      }
+    };
+
+    void validateSession();
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const loadArticles = async () => {
+      try {
+        const token = getAdminToken();
+        const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+
+        const needsArticles =
+          pathname === "/" ||
+          pathname.startsWith("/articles") ||
+          pathname.startsWith("/dashboard");
+        const needsStages =
+          pathname.startsWith("/stages") ||
+          pathname.startsWith("/dashboard");
+        const needsPartners =
+          pathname.startsWith("/dashboard");
+        const needsUsers =
+          pathname.startsWith("/profile") ||
+          pathname.startsWith("/equipe") ||
+          pathname.startsWith("/dashboard");
+        const needsSettings =
+          pathname.startsWith("/parametres") ||
+          pathname.startsWith("/apercu-site") ||
+          pathname.startsWith("/articles") ||
+          pathname.startsWith("/stages") ||
+          pathname.startsWith("/tracking") ||
+          pathname === "/" ||
+          pathname.startsWith("/dashboard");
+
+        const articlesUrl = token
+          ? needsArticles
+            ? "/api/admin/articles?limit=100"
+            : "/api/admin/articles?limit=20"
+          : "/api/articles?limit=100";
+
+        const fetchOptions = {
+          headers,
+          signal: controller.signal,
+          cache: "no-store",
+        } as const;
+
+        // Fetch all needed resources in parallel
+        const [
+          articlesRes,
+          stagesRes,
+          partnersRes,
+          settingsRes,
+          usersRes,
+        ] = await Promise.all([
+          fetch(articlesUrl, fetchOptions),
+          token && needsStages ? fetch("/api/admin/stages", fetchOptions) : Promise.resolve(null),
+          token && needsPartners ? fetch("/api/admin/partners", fetchOptions) : Promise.resolve(null),
+          token && needsSettings ? fetch("/api/admin/settings", fetchOptions) : Promise.resolve(null),
+          token && needsUsers ? fetch("/api/admin/users", fetchOptions) : Promise.resolve(null),
+        ]);
+
+        const [
+          articlePayload,
+          stagePayload,
+          partnerPayload,
+          settingsPayload,
+          usersPayload,
+        ] = await Promise.all([
+          articlesRes && articlesRes.ok ? articlesRes.json() : { data: [] },
+          stagesRes && stagesRes.ok ? stagesRes.json() : { data: [] },
+          partnersRes && partnersRes.ok ? partnersRes.json() : { data: [] },
+          settingsRes && settingsRes.ok ? settingsRes.json() : {} as any,
+          usersRes && usersRes.ok ? usersRes.json() : { data: [] },
+        ]);
+
+        setData((prev) => ({
+          ...prev,
+          articles: Array.isArray(articlePayload?.data) ? articlePayload.data.map(mapDbArticle) : prev.articles,
+          stages: (token && needsStages && Array.isArray(stagePayload?.data)) ? stagePayload.data.map(mapDbStage) : prev.stages,
+          partners: (token && needsPartners && Array.isArray(partnerPayload?.data)) ? partnerPayload.data.map(mapDbPartner) : prev.partners,
+          users: (token && needsUsers && Array.isArray(usersPayload?.data)) ? usersPayload.data.map(mapDbUser) : prev.users,
+          homePage: settingsPayload?.home
+            ? {
+                ...prev.homePage,
+                heroBadge: settingsPayload.home.hero_badge,
+                heroTitle: settingsPayload.home.hero_title,
+                heroSubtitle: settingsPayload.home.hero_subtitle,
+                heroPrimaryCtaLabel: settingsPayload.home.hero_primary_cta_label,
+                heroPrimaryCtaUrl: settingsPayload.home.hero_primary_cta_url,
+                heroSecondaryCtaLabel: settingsPayload.home.hero_secondary_cta_label,
+                heroSecondaryCtaUrl: settingsPayload.home.hero_secondary_cta_url,
+                heroBackgroundImage: settingsPayload.home.hero_background_image,
+                aboutTitle: settingsPayload.home.about_title,
+                aboutBody: settingsPayload.home.about_body,
+                articleSectionTitle: settingsPayload.home.article_section_title,
+                articleSectionIntro: settingsPayload.home.article_section_intro,
+                stageSectionTitle: settingsPayload.home.stage_section_title,
+                stageSectionIntro: settingsPayload.home.stage_section_intro,
+                partnerSectionTitle: settingsPayload.home.partner_section_title,
+                partnerSectionIntro: settingsPayload.home.partner_section_intro,
+                featuredArticleIds: settingsPayload.home.featured_article_ids || [],
+                featuredStageIds: settingsPayload.home.featured_stage_ids || [],
+                visits: settingsPayload.home.visits || 0,
+                ctaClicks: settingsPayload.home.cta_clicks || 0,
+                metrics: Array.isArray(settingsPayload.metrics) ? settingsPayload.metrics.map((m: any) => ({ label: m.label, value: m.value, note: m.note || undefined })) : prev.homePage.metrics,
+              }
+            : prev.homePage,
+          siteSettings: settingsPayload?.site
+            ? {
+                ...prev.siteSettings,
+                siteName: settingsPayload.site.site_name,
+                publicTagline: settingsPayload.site.public_tagline,
+                primaryEmail: settingsPayload.site.primary_email,
+                phone: settingsPayload.site.phone,
+                address: settingsPayload.site.address,
+                footerText: settingsPayload.site.footer_text,
+                partnerPageTitle: settingsPayload.site.partner_page_title,
+                partnerPageIntro: settingsPayload.site.partner_page_intro,
+                articlePageTitle: settingsPayload.site.article_page_title,
+                articlePageIntro: settingsPayload.site.article_page_intro,
+                stagePageTitle: settingsPayload.site.stage_page_title,
+                stagePageIntro: settingsPayload.site.stage_page_intro,
+              }
+            : prev.siteSettings,
+        }));
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          console.error("[CmsContext] Impossible de charger les articles");
+        }
+      }
+    };
+
+    void loadArticles();
+
+    return () => controller.abort();
+  }, [hydrated, currentUser, pathname]);
+
+  // Removed redundant useEffect that was overwriting data.users with [currentUser]
+
+  const publishedArticles = useMemo(
+    () => data.articles.filter((article) => article.status === "published" && article.publishedAt),
+    [data.articles],
+  );
+
+  const publishedStages = useMemo(
+    () => data.stages.filter((stage) => stage.status === "published" && stage.publishedAt),
+    [data.stages],
+  );
+
+  const alerts = useMemo<CmsAlert[]>(
+    () =>
+      data.articles
+        .filter((article) => article.status === "review")
+        .slice(0, 3)
+        .map((article) => ({
+          id: `article-${article.id}`,
+          title: "Article en revue",
+          description: article.title,
+          href: `/articles/${article.id}/modifier`,
+        })),
+    [data.articles],
+  );
+
+  const signIn = useCallback(({ email }: SignInPayload): AuthResponse => {
+    const sessionUser = createCurrentUserFromSession();
+
+    if (!sessionUser || sessionUser.email.toLowerCase() !== email.trim().toLowerCase()) {
+      return {
+        success: false,
+        message: "Connexion invalide. Passez par l'ecran de connexion API.",
+      };
+    }
+
+    setCurrentUser(sessionUser);
+    return { success: true };
+  }, []);
+
+  const signOut = useCallback(() => {
+    clearAdminSession();
+    setCurrentUser(null);
+    setData((prev) => ({
+      ...prev,
+      articles: prev.articles.filter((article) => article.status === "published"),
+      users: [],
+    }));
+  }, []);
+
+  const deleteArticle = useCallback((articleId: string) => {
+    const token = getAdminToken();
+
+    if (!token) {
+      return;
+    }
+
+    setData((prev) => ({
+      ...prev,
+      articles: prev.articles.filter((article) => article.id !== articleId),
+      homePage: {
+        ...prev.homePage,
+        featuredArticleIds: prev.homePage.featuredArticleIds.filter((id) => id !== articleId),
+      },
+    }));
+
+    void fetch(`/api/admin/articles/${articleId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }).catch(() => {
+      console.error("[CmsContext] Echec de suppression d'article");
+    });
+  }, []);
+
+  const saveArticle = useCallback(
+    (input: ArticleInput) =>
+      ({
+        ...input,
+        slug: input.slug || "",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        publishedAt: input.status === "published" ? new Date().toISOString() : null,
+      }) as CmsArticle,
+    [],
+  );
+
+  const saveStage = useCallback((input: StageInput) => {
+    const token = getAdminToken();
+    const nextStage = {
+      ...input,
+      slug: input.slug || "",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      publishedAt: input.status === "published" ? new Date().toISOString() : null,
+    } as CmsStage;
+
+    if (!token) {
+      return nextStage;
+    }
+
+    const payload = {
+      titre: nextStage.title,
+      extrait: nextStage.excerpt,
+      contenu: nextStage.body,
+      photo_couverture: nextStage.coverImage,
+      departement: nextStage.department,
+      location: nextStage.location,
+      work_mode: nextStage.workMode,
+      duration: nextStage.duration,
+      contact_email: nextStage.contactEmail,
+      close_date: nextStage.closeDate,
+      supervisor: nextStage.supervisor,
+      start_date: nextStage.startDate,
+      stage_type: nextStage.stageType,
+      main_group: nextStage.mainGroup,
+      languages: nextStage.languages,
+      about_club: nextStage.aboutClub,
+      about_mission: nextStage.aboutMission,
+      responsibilities: nextStage.responsibilities,
+      club_life: nextStage.clubLife,
+      profile_searched: nextStage.profileSearched,
+      category: nextStage.category,
+      engagement: nextStage.engagement,
+      featured: nextStage.featured,
+      statut: nextStage.status,
+      slug: nextStage.slug,
+      date_publication: nextStage.publishedAt,
+    };
+
+    const method = nextStage.id ? "PUT" : "POST";
+    const url = nextStage.id ? `/api/admin/stages/${nextStage.id}` : "/api/admin/stages";
+    void fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    return nextStage;
+  }, []);
+
+  const deleteStage = useCallback((stageId: string) => {
+    const token = getAdminToken();
+    if (!token) return;
+    setData((prev) => ({ ...prev, stages: prev.stages.filter((stage) => stage.id !== stageId) }));
+    void fetch(`/api/admin/stages/${stageId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }, []);
+
+  const savePartner = useCallback((input: CmsPartner) => {
+    const token = getAdminToken();
+    if (!token) return input;
+    const payload = {
+      nom: input.name,
+      website: input.website,
+      logo: input.logo,
+      categorie: input.category,
+      tier: input.tier,
+      description: input.description,
+      featured: input.featured,
+    };
+    const method = input.id ? "PUT" : "POST";
+    const url = input.id ? `/api/admin/partners/${input.id}` : "/api/admin/partners";
+    void fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+    return input;
+  }, []);
+
+  const deletePartner = useCallback((partnerId: string) => {
+    const token = getAdminToken();
+    if (!token) return;
+    setData((prev) => ({
+      ...prev,
+      partners: prev.partners.filter((partner) => partner.id !== partnerId),
+    }));
+    void fetch(`/api/admin/partners/${partnerId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }, []);
+
+  const saveUser = useCallback(async (input: CmsUser): Promise<SaveUserResponse> => {
+    const token = getAdminToken();
+    if (!token) return { success: false, message: "Session admin absente." };
+
+    const payload = {
+      nom: input.name,
+      email: input.email,
+      password: input.password,
+      role: input.role,
+      title: input.title,
+      avatar: input.avatar,
+      bio: input.bio,
+      actif: input.active,
+    };
+
+    const method = input.id ? "PUT" : "POST";
+    const url = input.id ? `/api/admin/users/${input.id}` : "/api/admin/users";
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (!res.ok) return { success: false, message: json.error || "Erreur API" };
+
+      const saved = mapDbUser(json.data);
+      setData((prev) => ({
+        ...prev,
+        users: input.id
+          ? prev.users.map((u) => (u.id === input.id ? saved : u))
+          : [saved, ...prev.users],
+      }));
+
+      return { success: true, user: saved };
+    } catch (e) {
+      return { success: false, message: "Erreur de connexion reseau." };
+    }
+  }, []);
+
+  const deleteUser = useCallback(async (userId: string): Promise<SaveUserResponse> => {
+    const token = getAdminToken();
+    if (!token) return { success: false, message: "Session admin absente." };
+
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const json = await res.json();
+        return { success: false, message: json.error || "Erreur lors de la suppression" };
+      }
+
+      setData((prev) => ({ ...prev, users: prev.users.filter((user) => user.id !== userId) }));
+      return { success: true };
+    } catch (e) {
+      return { success: false, message: "Erreur de connexion reseau." };
+    }
+  }, []);
+
+  const updateHomePage = useCallback((patch: Partial<HomePageSettings>) => {
+    const token = getAdminToken();
+    setData((prev) => {
+      const next = { ...prev, homePage: { ...prev.homePage, ...patch } };
+      if (token) {
+        const settingsPayload = {
+          home: {
+            hero_badge: next.homePage.heroBadge,
+            hero_title: next.homePage.heroTitle,
+            hero_subtitle: next.homePage.heroSubtitle,
+            hero_primary_cta_label: next.homePage.heroPrimaryCtaLabel,
+            hero_primary_cta_url: next.homePage.heroPrimaryCtaUrl,
+            hero_secondary_cta_label: next.homePage.heroSecondaryCtaLabel,
+            hero_secondary_cta_url: next.homePage.heroSecondaryCtaUrl,
+            hero_background_image: next.homePage.heroBackgroundImage,
+            about_title: next.homePage.aboutTitle,
+            about_body: next.homePage.aboutBody,
+            article_section_title: next.homePage.articleSectionTitle,
+            article_section_intro: next.homePage.articleSectionIntro,
+            stage_section_title: next.homePage.stageSectionTitle,
+            stage_section_intro: next.homePage.stageSectionIntro,
+            partner_section_title: next.homePage.partnerSectionTitle,
+            partner_section_intro: next.homePage.partnerSectionIntro,
+            featured_article_ids: next.homePage.featuredArticleIds,
+            featured_stage_ids: next.homePage.featuredStageIds,
+            visits: next.homePage.visits,
+            cta_clicks: next.homePage.ctaClicks,
+          },
+          metrics: next.homePage.metrics,
+        };
+
+        void fetch("/api/admin/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(settingsPayload),
+        });
+      }
+      return next;
+    });
+  }, []);
+
+  const updateSiteSettings = useCallback((patch: Partial<SiteSettings>) => {
+    const token = getAdminToken();
+    setData((prev) => {
+      const next = { ...prev, siteSettings: { ...prev.siteSettings, ...patch } };
+      if (token) {
+        const settingsPayload = {
+          site: {
+            site_name: next.siteSettings.siteName,
+            public_tagline: next.siteSettings.publicTagline,
+            primary_email: next.siteSettings.primaryEmail,
+            phone: next.siteSettings.phone,
+            address: next.siteSettings.address,
+            footer_text: next.siteSettings.footerText,
+            partner_page_title: next.siteSettings.partnerPageTitle,
+            partner_page_intro: next.siteSettings.partnerPageIntro,
+            article_page_title: next.siteSettings.articlePageTitle,
+            article_page_intro: next.siteSettings.articlePageIntro,
+            stage_page_title: next.siteSettings.stagePageTitle,
+            stage_page_intro: next.siteSettings.stagePageIntro,
+          },
+        };
+
+        void fetch("/api/admin/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(settingsPayload),
+        });
+      }
+      return next;
+    });
+  }, []);
+
+  const trackArticleView = useCallback((articleId: string) => {
+    setData((prev) => ({
+      ...prev,
+      articles: prev.articles.map((article) =>
+        article.id === articleId
+          ? { ...article, metrics: { ...article.metrics, views: article.metrics.views + 1 } }
+          : article,
+      ),
+    }));
+  }, []);
+
+  const trackArticleLinkClick = useCallback((articleId: string) => {
+    setData((prev) => ({
+      ...prev,
+      articles: prev.articles.map((article) =>
+        article.id === articleId
+          ? {
+              ...article,
+              metrics: { ...article.metrics, linkClicks: article.metrics.linkClicks + 1 },
+            }
+          : article,
+      ),
+    }));
+  }, []);
+
+  const trackStageView = useCallback((stageId: string) => {
+    setData((prev) => ({
+      ...prev,
+      stages: prev.stages.map((s) =>
+        s.id === stageId ? { ...s, metrics: { ...s.metrics, views: s.metrics.views + 1 } } : s,
+      ),
+    }));
+  }, []);
+
+  const trackStageApplication = useCallback((stageId: string) => {
+    setData((prev) => ({
+      ...prev,
+      stages: prev.stages.map((s) =>
+        s.id === stageId
+          ? { ...s, metrics: { ...s.metrics, applications: s.metrics.applications + 1 } }
+          : s,
+      ),
+    }));
+  }, []);
+
+  const trackStageContact = useCallback((stageId: string) => {
+    setData((prev) => ({
+      ...prev,
+      stages: prev.stages.map((s) =>
+        s.id === stageId
+          ? { ...s, metrics: { ...s.metrics, contactClicks: (s.metrics.contactClicks || 0) + 1 } }
+          : s,
+      ),
+    }));
+  }, []);
+
+  const trackPartnerClick = useCallback((partnerId: string) => {
+    setData((prev) => ({
+      ...prev,
+      partners: prev.partners.map((p) =>
+        p.id === partnerId ? { ...p, clicks: (p.clicks || 0) + 1 } : p,
+      ),
+    }));
+  }, []);
+
+  const trackHomeVisit = useCallback(() => {
+    setData((prev) => ({
+      ...prev,
+      homePage: {
+        ...prev.homePage,
+        visits: prev.homePage.visits + 1,
+      },
+    }));
+  }, []);
+
+  const trackHomeCta = useCallback(() => {
+    setData((prev) => ({
+      ...prev,
+      homePage: {
+        ...prev.homePage,
+        ctaClicks: prev.homePage.ctaClicks + 1,
+      },
+    }));
+  }, []);
+
+  const refreshUnreadDemandesCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/demandes");
+      if (res.ok) {
+        const json = await res.json();
+        const unread = (json.data || []).filter((d: any) => !d.is_read).length;
+        setUnreadDemandesCount(unread);
+      }
+    } catch (e) {
+      console.error("[CmsContext] Erreur refresh unread", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (hydrated && currentUser) {
+      refreshUnreadDemandesCount();
+    }
+  }, [hydrated, currentUser, refreshUnreadDemandesCount]);
+
+  const contextValue = useMemo(
+    () => ({
+      ...data,
+      hydrated,
+      currentUser,
+      publishedArticles,
+      publishedStages,
+      alerts,
+      canManageUsers: currentUser?.role === "super_admin",
+      signIn,
+      signOut,
+      saveArticle,
+      deleteArticle,
+      saveStage,
+      deleteStage,
+      savePartner,
+      deletePartner,
+      saveUser,
+      deleteUser,
+      updateHomePage,
+      updateSiteSettings,
+      trackArticleView,
+      trackArticleLinkClick,
+      trackStageView,
+      trackStageApplication,
+      trackStageContact,
+      trackPartnerClick,
+      trackHomeVisit,
+      trackHomeCta,
+      unreadDemandesCount,
+      refreshUnreadDemandesCount,
+    }),
+    [
+      data,
+      hydrated,
+      currentUser,
+      publishedArticles,
+      publishedStages,
+      alerts,
+      signIn,
+      signOut,
+      saveArticle,
+      deleteArticle,
+      saveStage,
+      deleteStage,
+      savePartner,
+      deletePartner,
+      saveUser,
+      deleteUser,
+      updateHomePage,
+      updateSiteSettings,
+      trackArticleView,
+      trackArticleLinkClick,
+      trackStageView,
+      trackStageApplication,
+      trackStageContact,
+      trackPartnerClick,
+      trackHomeVisit,
+      trackHomeCta,
+      unreadDemandesCount,
+      refreshUnreadDemandesCount,
+    ],
+  );
+
+  return <CmsContext.Provider value={contextValue}>{children}</CmsContext.Provider>;
+};
+
+export const useCms = () => {
+  const context = useContext(CmsContext);
+
+  if (!context) {
+    throw new Error("useCms must be used inside CmsProvider");
+  }
+
+  return context;
+};
