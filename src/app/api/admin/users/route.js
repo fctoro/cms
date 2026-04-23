@@ -25,6 +25,17 @@ export async function POST(request) {
   const forbidden = requireSuperAdmin(auth.user);
   if (forbidden) return forbidden;
   const body = await request.json();
+  
+  if (body.password) {
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!strongPasswordRegex.test(body.password)) {
+      return NextResponse.json(
+        { error: "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre." },
+        { status: 400 }
+      );
+    }
+  }
+
   try {
     const hash = await bcrypt.hash(body.password, 10);
     const { rows } = await db.query(

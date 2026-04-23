@@ -252,6 +252,7 @@ export default function EquipePage() {
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                   placeholder="••••••••"
                 />
+                <p className="mt-1 text-[10px] text-gray-500 italic">8+ caractères, 1 majuscule, 1 minuscule, 1 chiffre.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

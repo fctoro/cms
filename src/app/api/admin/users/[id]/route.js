@@ -13,6 +13,17 @@ export async function PUT(request, { params }) {
   if (forbidden) return forbidden;
   const { id } = await params;
   const body = await request.json();
+
+  if (body.password) {
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!strongPasswordRegex.test(body.password)) {
+      return NextResponse.json(
+        { error: "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre." },
+        { status: 400 }
+      );
+    }
+  }
+
   try {
     let passwordHash;
     if (body.password) {
