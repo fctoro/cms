@@ -25,10 +25,12 @@ export async function POST(request) {
   const forbidden = requireSuperAdmin(auth.user);
   if (forbidden) return forbidden;
   const body = await request.json();
+  const email = body.email ? body.email.trim() : "";
+  const password = body.password ? body.password.trim() : "";
   
-  if (body.password) {
+  if (password) {
     const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
-    if (!strongPasswordRegex.test(body.password)) {
+    if (!strongPasswordRegex.test(password)) {
       return NextResponse.json(
         { error: "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre." },
         { status: 400 }
@@ -37,7 +39,7 @@ export async function POST(request) {
   }
 
   try {
-    const hash = await bcrypt.hash(body.password, 10);
+    const hash = await bcrypt.hash(password, 10);
     const { rows } = await db.query(
       `INSERT INTO admin_users
        (name, email, password_hash, role, title, avatar, bio, active)
@@ -45,7 +47,7 @@ export async function POST(request) {
        RETURNING *`,
       [
         body.nom || body.name,
-        body.email,
+        email,
         hash,
         body.role || "editor",
         body.title || "",

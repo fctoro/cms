@@ -18,7 +18,8 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { email, mot_de_passe } = body;
+    const email = body.email ? body.email.trim() : "";
+    const mot_de_passe = body.mot_de_passe ? body.mot_de_passe.trim() : "";
     const ip = request.headers.get("x-forwarded-for") || "0.0.0.0";
     const userAgent = request.headers.get("user-agent") || "";
 

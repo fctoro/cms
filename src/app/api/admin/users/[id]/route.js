@@ -13,10 +13,12 @@ export async function PUT(request, { params }) {
   if (forbidden) return forbidden;
   const { id } = await params;
   const body = await request.json();
+  const email = body.email ? body.email.trim() : undefined;
+  const password = body.password ? body.password.trim() : "";
 
-  if (body.password) {
+  if (password) {
     const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
-    if (!strongPasswordRegex.test(body.password)) {
+    if (!strongPasswordRegex.test(password)) {
       return NextResponse.json(
         { error: "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre." },
         { status: 400 }
@@ -26,8 +28,8 @@ export async function PUT(request, { params }) {
 
   try {
     let passwordHash;
-    if (body.password) {
-      passwordHash = await bcrypt.hash(body.password, 10);
+    if (password) {
+      passwordHash = await bcrypt.hash(password, 10);
     }
     const { rows } = await db.query(
       `UPDATE admin_users SET
@@ -44,7 +46,7 @@ export async function PUT(request, { params }) {
        RETURNING *`,
       [
         body.name || body.nom,
-        body.email,
+        email,
         passwordHash,
         body.role,
         body.title,
