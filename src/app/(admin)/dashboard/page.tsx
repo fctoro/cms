@@ -3,6 +3,7 @@
 import { MetricCard, SectionCard, StatusBadge, formatDate, formatNumber } from "@/components/common/CmsShared";
 import PageBreadCrumb from "@/components/common/PageBreadCrumb";
 import { useCms } from "@/context/CmsContext";
+import { CmsArticle, CmsStage } from "@/types/cms";
 import Link from "next/link";
 
 export default function DashboardPage() {
@@ -20,7 +21,7 @@ export default function DashboardPage() {
   const publishedStages = stages.filter((stage) => stage.status === "published");
   const totalArticleViews = articles.reduce((sum, article) => sum + article.metrics.views, 0);
   const totalStageApplications = stages.reduce(
-    (sum, stage) => sum + stage.metrics.applications,
+    (sum, stage) => sum + (stage.metrics?.applications || 0),
     0,
   );
   const totalPartnerClicks = partners.reduce((sum, partner) => sum + partner.clicks, 0);
@@ -89,7 +90,7 @@ export default function DashboardPage() {
                     : `/stages/${entry.id}/modifier`;
                   const metric = isArticle
                     ? `${formatNumber((entry as CmsArticle).metrics.views)} vues`
-                    : `${formatNumber((entry as CmsStage).metrics.applications)} candidatures`;
+                    : `${formatNumber((entry as CmsStage).metrics?.applications || 0)} candidatures`;
 
                   return (
                     <tr key={entry.id}>
@@ -149,7 +150,13 @@ export default function DashboardPage() {
                 className="flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800"
               >
                 <div className="flex items-center gap-3">
-                  <img src={user.avatar} alt={user.name} className="h-11 w-11 rounded-full object-cover" />
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="h-11 w-11 rounded-full object-cover" />
+                  ) : (
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-500 text-sm font-semibold text-white">
+                      {user.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white/90">{user.name}</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">{user.title}</p>

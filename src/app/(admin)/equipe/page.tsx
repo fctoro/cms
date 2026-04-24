@@ -168,7 +168,13 @@ export default function EquipePage() {
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-gray-200 overflow-hidden">
-                        <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+                        {user.avatar ? (
+                          <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-brand-500 text-xs font-semibold text-white">
+                            {user.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900 dark:text-white">{user.name}</p>
@@ -278,7 +284,7 @@ export default function EquipePage() {
 
               <div>
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 dark:border-gray-800 px-4 py-3 cursor-pointer">
-                  <span className="text-sm font-medium">Statut du compte (Actif)</span>
+                   <span className="text-sm font-medium">Statut du compte (Actif)</span>
                   <button
                     type="button"
                     onClick={() => setFormData({...formData, active: !formData.active})}

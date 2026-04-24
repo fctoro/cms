@@ -46,7 +46,7 @@ export async function GET(request) {
     const statut = searchParams.get("status") || searchParams.get("statut");
 
     let query =
-      "SELECT id, slug, title_fr, title_en, author_name, published_at, status, created_at, updated_at FROM articles";
+      "SELECT id, slug, title_fr, title_en, author_name, author_id, category, cover_image, published_at, status, created_at, updated_at FROM articles";
     const args = [];
 
     if (statut) {
@@ -133,7 +133,7 @@ export async function POST(request) {
         body.category || body.categorie || "Actualites",
         Array.isArray(body.tags) ? body.tags : [],
         auth.user.id,
-        auth.user.email,
+        auth.user.name || auth.user.email,
         Boolean(body.featured),
         body.seo_title || body.seoTitle || "",
         body.seo_description || body.seoDescription || "",

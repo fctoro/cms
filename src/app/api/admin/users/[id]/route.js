@@ -13,10 +13,12 @@ export async function PUT(request, { params }) {
   if (forbidden) return forbidden;
   const { id } = await params;
   const body = await request.json();
+  const email = body.email ? body.email.trim() : undefined;
+  const password = body.password ? body.password.trim() : "";
 
-  if (body.password) {
+  if (password) {
     const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
-    if (!strongPasswordRegex.test(body.password)) {
+    if (!strongPasswordRegex.test(password)) {
       return NextResponse.json(
         { error: "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre." },
         { status: 400 }
@@ -26,8 +28,8 @@ export async function PUT(request, { params }) {
 
   try {
     let passwordHash;
-    if (body.password) {
-      passwordHash = await bcrypt.hash(body.password, 10);
+    if (password) {
+      passwordHash = await bcrypt.hash(password, 10);
     }
     const { rows } = await db.query(
       `UPDATE admin_users SET
@@ -41,10 +43,10 @@ export async function PUT(request, { params }) {
        active = COALESCE($8, active),
        updated_at = NOW()
        WHERE id = $9
-       RETURNING *`,
+       RETURNING id, name, email, role, title, avatar, bio, active, created_at, updated_at`,
       [
         body.name || body.nom,
-        body.email,
+        email,
         passwordHash,
         body.role,
         body.title,
@@ -57,6 +59,7 @@ export async function PUT(request, { params }) {
     if (!rows.length) return NextResponse.json({ error: "Compte introuvable." }, { status: 404 });
     return NextResponse.json({ data: rows[0] });
   } catch (err) {
+    console.error(`[PUT /api/admin/users/${id}]`, err.message);
     return NextResponse.json({ error: "Erreur serveur." }, { status: 500 });
   }
 }
@@ -68,10 +71,14 @@ export async function DELETE(request, { params }) {
   if (forbidden) return forbidden;
   try {
     const { id } = await params;
+    if (id === auth.user.id) {
+       return NextResponse.json({ error: "Vous ne pouvez pas supprimer votre propre compte." }, { status: 400 });
+    }
     const { rowCount } = await db.query("DELETE FROM admin_users WHERE id = $1", [id]);
     if (!rowCount) return NextResponse.json({ error: "Compte introuvable." }, { status: 404 });
     return NextResponse.json({ ok: true });
   } catch (err) {
+    console.error(`[DELETE /api/admin/users/${id}]`, err.message);
     return NextResponse.json({ error: "Erreur serveur." }, { status: 500 });
   }
 }

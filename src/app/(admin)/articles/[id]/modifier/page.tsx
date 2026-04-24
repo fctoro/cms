@@ -12,30 +12,30 @@ function mapArticle(row: Record<string, unknown>): CmsArticle {
   return {
     id: String(row.id ?? ""),
     slug: String(row.slug ?? ""),
-    title: String(row.titre_fr ?? ""),
-    excerpt: String(row.extrait_fr ?? ""),
-    body: String(row.contenu_fr ?? ""),
-    coverImage: String(row.photo_couverture ?? "/images/grid-image/image-01.png"),
-    category: String(row.categorie ?? "Articles"),
+    title: String(row.title_fr ?? row.titre_fr ?? ""),
+    excerpt: String(row.excerpt_fr ?? row.extrait_fr ?? ""),
+    body: String(row.content_fr ?? row.contenu_fr ?? ""),
+    coverImage: String(row.cover_image ?? row.photo_couverture ?? "/images/grid-image/image-01.png"),
+    category: String(row.category ?? row.categorie ?? "Articles"),
     tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
     authorId: String(row.auteur_id ?? row.auteur ?? ""),
     featured: Boolean(row.featured),
     status:
-      row.statut === "publie" || row.statut === "published"
+      row.status === "published" || row.statut === "publie" || row.statut === "published"
         ? "published"
-        : row.statut === "revision" || row.statut === "review"
+        : row.status === "review" || row.statut === "revision" || row.statut === "review"
         ? "review"
-        : row.statut === "archive" || row.statut === "archived"
+        : row.status === "archived" || row.statut === "archive" || row.statut === "archived"
         ? "archived"
         : "draft",
-    seoTitle: String(row.titre_en ?? row.titre_fr ?? ""),
-    seoDescription: String(row.extrait_fr ?? ""),
-    createdAt: String(row.date_creation ?? new Date().toISOString()),
-    updatedAt: String(row.date_modification ?? row.date_creation ?? new Date().toISOString()),
-    publishedAt: row.date_publication ? String(row.date_publication) : null,
+    seoTitle: String(row.seo_title ?? row.titre_en ?? row.title_en ?? row.title_fr ?? ""),
+    seoDescription: String(row.seo_description ?? row.extrait_fr ?? ""),
+    createdAt: String(row.created_at ?? row.date_creation ?? new Date().toISOString()),
+    updatedAt: String(row.updated_at ?? row.date_modification ?? row.date_creation ?? new Date().toISOString()),
+    publishedAt: row.published_at ? String(row.published_at) : (row.date_publication ? String(row.date_publication) : null),
     metrics: {
       views: Number(row.views ?? 0),
-      linkClicks: Number(row.linkClicks ?? 0),
+      linkClicks: Number(row.link_clicks ?? row.linkClicks ?? 0),
       shares: Number(row.shares ?? 0),
       leads: Number(row.leads ?? 0),
     },

@@ -1,14 +1,20 @@
 import { NextResponse } from "next/server";
+
 const db = require("@/server/db");
+
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const { rows } = await db.query("SELECT * FROM club_elite_players ORDER BY number ASC");
+    const { rows } = await db.query("SELECT * FROM club_elite_players ORDER BY CAST(number AS INTEGER) ASC");
     return NextResponse.json({ data: rows });
   } catch (err) {
-    console.error("[GET /api/club/elite]", err.message);
-    return NextResponse.json({ error: "Erreur lecture elite: " + err.message }, { status: 500 });
+    console.error("[GET /api/club/elite] Detailed Error:", err);
+    return NextResponse.json({ 
+      error: "Erreur lecture elite", 
+      details: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    }, { status: 500 });
   }
 }
 

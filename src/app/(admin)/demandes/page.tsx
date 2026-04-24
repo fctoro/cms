@@ -178,7 +178,7 @@ function stageToDemande(stage: CmsStage): Demande {
     name: stage.title,
     email: stage.contactEmail || null,
     phone: null,
-    message: stage.excerpt || `${stage.metrics.applications} candidature(s) reçue(s).`,
+    message: stage.excerpt || `${stage.metrics?.applications || 0} candidature(s) reçue(s).`,
     payload: {
       department: stage.department,
       location: stage.location,
@@ -192,9 +192,9 @@ function stageToDemande(stage: CmsStage): Demande {
       languages: stage.languages,
       category: stage.category,
       engagement: stage.engagement,
-      views: stage.metrics.views,
-      applications: stage.metrics.applications,
-      contact_clicks: stage.metrics.contactClicks,
+      views: stage.metrics?.views || 0,
+      applications: stage.metrics?.applications || 0,
+      contact_clicks: stage.metrics?.contactClicks || 0,
       excerpt: stage.excerpt,
     },
     is_read: true,
@@ -326,7 +326,7 @@ export default function DemandesPage() {
         const mappedStages = Array.isArray(json.data) ? json.data.map(mapDbStage) : [];
         setStageDemandes(
           mappedStages
-            .filter((stage: CmsStage) => stage.metrics.applications > 0)
+            .filter((stage: CmsStage) => (stage.metrics?.applications || 0) > 0)
             .map(stageToDemande),
         );
       }
@@ -668,12 +668,17 @@ export default function DemandesPage() {
                                 <button 
                                    onClick={(e) => {
                                      e.stopPropagation();
-                                     window.open(
-                                       d.type === "stagiaire"
-                                         ? `/api/stages/pdf?id=${d.id}`
-                                         : `/api/demandes/pdf?id=${d.id}`,
-                                       "_blank",
-                                     );
+                                     if (d.type === "stagiaire") {
+                                       const cvPath = d.payload?.cv || d.payload?.cv_url;
+                                       if (cvPath) {
+                                         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
+                                         window.open(`${siteUrl}${cvPath}`, "_blank");
+                                       } else {
+                                          window.open(`/api/stages/pdf?id=${d.id}`, "_blank");
+                                       }
+                                     } else {
+                                       window.open(`/api/demandes/pdf?id=${d.id}`, "_blank");
+                                     }
                                    }}
                                    className="text-gray-500 hover:text-brand-500 transition-colors" 
                                    title="Télécharger Dossier PDF"
@@ -860,12 +865,19 @@ export default function DemandesPage() {
                      <div className="pt-4 space-y-3">
                         {(selectedDemande.type === "joueur" || selectedDemande.type === "stagiaire") && (
                            <button 
-                              onClick={() => window.open(
-                                selectedDemande.type === "stagiaire"
-                                  ? `/api/stages/pdf?id=${selectedDemande.id}`
-                                  : `/api/demandes/pdf?id=${selectedDemande.id}`,
-                                '_blank',
-                              )}
+                              onClick={() => {
+                                 if (selectedDemande.type === "stagiaire") {
+                                    const cvPath = selectedDemande.payload?.cv || selectedDemande.payload?.cv_url;
+                                    if (cvPath) {
+                                       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
+                                       window.open(`${siteUrl}${cvPath}`, "_blank");
+                                    } else {
+                                       window.open(`/api/stages/pdf?id=${selectedDemande.id}`, '_blank');
+                                    }
+                                 } else {
+                                    window.open(`/api/demandes/pdf?id=${selectedDemande.id}`, '_blank');
+                                 }
+                              }}
                               className="w-full py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-[11px] font-black uppercase tracking-widest text-white transition-all shadow-lg shadow-brand-500/20 flex items-center justify-center gap-2 mb-2"
                            >
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -1000,7 +1012,7 @@ export default function DemandesPage() {
                       )}
                    </button>
                 </div>
-            </div>
+             </div>
           </div>
         </div>,
         document.body

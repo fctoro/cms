@@ -35,8 +35,14 @@ export default function UserDropdown() {
         onClick={toggleDropdown}
         className="dropdown-toggle flex items-center text-gray-700 dark:text-gray-400"
       >
-        <span className="mr-3 h-11 w-11 overflow-hidden rounded-full">
-          <Image width={44} height={44} src={currentUser.avatar} alt={currentUser.name} />
+        <span className="mr-3 h-11 w-11 flex items-center justify-center overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+          {currentUser.avatar ? (
+            <Image width={44} height={44} src={currentUser.avatar} alt={currentUser.name} className="h-full w-full object-cover" />
+          ) : (
+            <span className="text-xs font-bold text-gray-500 uppercase">
+              {currentUser.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+            </span>
+          )}
         </span>
 
         <span className="mr-1 block text-theme-sm font-medium">{currentUser.name.split(" ")[0]}</span>
