@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 import fs from "fs";
 import path from "path";
 
@@ -43,7 +44,21 @@ async function resolveDocumentBytes(doc) {
         }
       }
 
-      // Try as local file under public/
+      // Try fetching from FRONTEND_URL (e.g. sitefctoro)
+      const frontendUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || "http://localhost:3001";
+      if (frontendUrl) {
+        const publicFrontendUrl = `${frontendUrl.replace(/\/$/, "")}/${pathStr.replace(/^\/+/, "")}`;
+        try {
+          const response = await fetch(publicFrontendUrl, { signal: AbortSignal.timeout(10000) });
+          if (response.ok) {
+            return Buffer.from(await response.arrayBuffer());
+          }
+        } catch (e) {
+          console.warn(`[resolveDocumentBytes] Could not fetch Frontend URL ${publicFrontendUrl}:`, e.message);
+        }
+      }
+
+      // Try as local file under public/ (cmsfctoro)
       try {
         const fullPath = path.join(process.cwd(), "public", pathStr);
         if (fs.existsSync(fullPath)) {
@@ -51,6 +66,16 @@ async function resolveDocumentBytes(doc) {
         }
       } catch (e) {
         console.warn(`[resolveDocumentBytes] Could not read local file:`, e.message);
+      }
+
+      // Try as local file under ../sitefctoro/public/ (in case running locally side-by-side)
+      try {
+        const siteFullPath = path.join(process.cwd(), "../sitefctoro/public", pathStr);
+        if (fs.existsSync(siteFullPath)) {
+          return fs.readFileSync(siteFullPath);
+        }
+      } catch (e) {
+        console.warn(`[resolveDocumentBytes] Could not read local site file:`, e.message);
       }
     }
   }
@@ -149,8 +174,21 @@ export async function GET(request) {
     );
 
     const pdfDoc = await PDFDocument.create();
+    pdfDoc.registerFontkit(fontkit);
+    
     const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
     const timesBoldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+    let signatureFont = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+
+    try {
+      const fontPath = path.join(process.cwd(), "public/fonts/signature.ttf");
+      if (fs.existsSync(fontPath)) {
+        const fontBytes = fs.readFileSync(fontPath);
+        signatureFont = await pdfDoc.embedFont(fontBytes);
+      }
+    } catch (e) {
+      console.warn("Could not load custom signature font:", e.message);
+    }
 
     let page = pdfDoc.addPage([595.28, 841.89]);
     const { width, height } = page.getSize();
@@ -326,8 +364,44 @@ export async function GET(request) {
       ["Numero Prefere:", reg.preferred_numbers],
       ["Plan de Paiement:", reg.payment_plan],
       ["Methode:", reg.payment_method],
-      ["Signature (Nom):", reg.signature_name],
     ]);
+
+    currentY -= 40;
+    if (currentY < 120) {
+      page = pdfDoc.addPage([595.28, 841.89]);
+      currentY = 800;
+      drawFooter(page, pdfDoc.getPageCount());
+    }
+    
+    page.drawText("Signature du Parent / Tuteur :", {
+      x: 45,
+      y: currentY,
+      size: 11,
+      font: timesBoldFont,
+      color: rgb(0.1, 0.1, 0.3),
+    });
+
+    const signatureText = reg.signature_name || "Non signee";
+    page.drawText(signatureText, {
+      x: 230,
+      y: currentY + 2,
+      size: 18, // increased size slightly for handwriting font
+      font: signatureFont,
+    });
+
+    page.drawLine({
+      start: { x: 220, y: currentY - 5 },
+      end: { x: 500, y: currentY - 5 },
+      thickness: 1,
+      color: rgb(0.7, 0.7, 0.7),
+    });
+
+    page.drawText(`Fait le : ${formatDate(reg.created_at)}`, {
+      x: 45,
+      y: currentY - 25,
+      size: 10,
+      font: timesRomanFont,
+    });
 
     drawFooter(page, 1);
 

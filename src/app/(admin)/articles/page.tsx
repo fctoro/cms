@@ -114,6 +114,9 @@ export default function ArticlesPage() {
                       src={article.coverImage || "/images/grid-image/image-01.png"}
                       alt={article.title}
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      onError={(e) => {
+                        e.currentTarget.src = '/images/logo/fc-toro.png';
+                      }}
                     />
                     <div className="absolute left-3 top-3">
                       <span className="rounded-full bg-black/50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">

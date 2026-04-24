@@ -171,37 +171,6 @@ type Demande = {
   created_at: string;
 };
 
-function stageToDemande(stage: CmsStage): Demande {
-  return {
-    id: stage.id,
-    type: "stagiaire",
-    name: stage.title,
-    email: stage.contactEmail || null,
-    phone: null,
-    message: stage.excerpt || `${stage.metrics.applications} candidature(s) reçue(s).`,
-    payload: {
-      department: stage.department,
-      location: stage.location,
-      work_mode: stage.workMode,
-      duration: stage.duration,
-      close_date: stage.closeDate,
-      supervisor: stage.supervisor,
-      start_date: stage.startDate,
-      stage_type: stage.stageType,
-      main_group: stage.mainGroup,
-      languages: stage.languages,
-      category: stage.category,
-      engagement: stage.engagement,
-      views: stage.metrics.views,
-      applications: stage.metrics.applications,
-      contact_clicks: stage.metrics.contactClicks,
-      excerpt: stage.excerpt,
-    },
-    is_read: true,
-    status: stage.status,
-    created_at: stage.createdAt,
-  };
-}
 
 function buildExportRow(demande: Demande) {
   return {
@@ -267,7 +236,6 @@ function downloadExcel(rows: Record<string, string>[], filename: string) {
 export default function DemandesPage() {
   const { refreshUnreadDemandesCount } = useCms();
   const [demandes, setDemandes] = useState<Demande[]>([]);
-  const [stageDemandes, setStageDemandes] = useState<Demande[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"contact" | "joueur" | "fan" | "stagiaire">("contact");
   const [selectedDemande, setSelectedDemande] = useState<Demande | null>(null);
@@ -311,24 +279,13 @@ export default function DemandesPage() {
       const token = getAdminToken();
       const stageHeaders = token ? { Authorization: `Bearer ${token}` } : undefined;
 
-      const [demandesRes, stagesRes] = await Promise.all([
+      const [demandesRes] = await Promise.all([
         fetch("/api/demandes"),
-        token ? fetch("/api/admin/stages", { headers: stageHeaders }) : Promise.resolve(null),
       ]);
 
       if (demandesRes.ok) {
         const json = await demandesRes.json();
         setDemandes(json.data || []);
-      }
-
-      if (stagesRes?.ok) {
-        const json = await stagesRes.json();
-        const mappedStages = Array.isArray(json.data) ? json.data.map(mapDbStage) : [];
-        setStageDemandes(
-          mappedStages
-            .filter((stage: CmsStage) => stage.metrics.applications > 0)
-            .map(stageToDemande),
-        );
       }
     } catch (e) {
       console.error(e);
@@ -381,18 +338,9 @@ export default function DemandesPage() {
     if (!confirm("Voulez-vous vraiment supprimer cette demande définitivement ?")) return;
     try {
       const token = getAdminToken();
-      const res = activeTab === "stagiaire"
-        ? await fetch(`/api/admin/stages/${id}`, {
-            method: "DELETE",
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          })
-        : await fetch(`/api/demandes?id=${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/demandes?id=${id}`, { method: "DELETE" });
       if (res.ok) {
-        if (activeTab === "stagiaire") {
-          setStageDemandes((prev) => prev.filter((d) => d.id !== id));
-        } else {
-          setDemandes((prev) => prev.filter((d) => d.id !== id));
-        }
+        setDemandes((prev) => prev.filter((d) => d.id !== id));
         setSelectedDemande(null);
         refreshUnreadDemandesCount();
       }
@@ -479,7 +427,7 @@ export default function DemandesPage() {
     }
   };
 
-  const allDemandes = useMemo(() => [...demandes, ...stageDemandes], [demandes, stageDemandes]);
+  const allDemandes = demandes;
 
   const availableYears = useMemo(() => {
     return Array.from(
@@ -668,12 +616,17 @@ export default function DemandesPage() {
                                 <button 
                                    onClick={(e) => {
                                      e.stopPropagation();
-                                     window.open(
-                                       d.type === "stagiaire"
-                                         ? `/api/stages/pdf?id=${d.id}`
-                                         : `/api/demandes/pdf?id=${d.id}`,
-                                       "_blank",
-                                     );
+                                     if (d.type === "stagiaire") {
+                                       const cvPath = d.payload?.cv || d.payload?.cv_url;
+                                       if (cvPath) {
+                                         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
+                                         window.open(`${siteUrl}${cvPath}`, "_blank");
+                                       } else {
+                                         alert("Aucun CV attaché.");
+                                       }
+                                     } else {
+                                       window.open(`/api/demandes/pdf?id=${d.id}`, "_blank");
+                                     }
                                    }}
                                    className="text-gray-500 hover:text-brand-500 transition-colors" 
                                    title="Télécharger Dossier PDF"

@@ -46,7 +46,7 @@ export async function GET(request) {
     const statut = searchParams.get("status") || searchParams.get("statut");
 
     let query =
-      "SELECT id, slug, title_fr, title_en, author_name, published_at, status, created_at, updated_at FROM articles";
+      "SELECT id, slug, title_fr, title_en, author_name, author_id, category, cover_image, published_at, status, created_at, updated_at FROM articles";
     const args = [];
 
     if (statut) {
