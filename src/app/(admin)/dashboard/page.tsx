@@ -3,6 +3,7 @@
 import { MetricCard, SectionCard, StatusBadge, formatDate, formatNumber } from "@/components/common/CmsShared";
 import PageBreadCrumb from "@/components/common/PageBreadCrumb";
 import { useCms } from "@/context/CmsContext";
+import { CmsArticle, CmsStage } from "@/types/cms";
 import Link from "next/link";
 
 export default function DashboardPage() {
