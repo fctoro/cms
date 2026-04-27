@@ -15,7 +15,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { currentUser, hydrated } = useCms();
-  const { isExpanded, isHovered, isMobileOpen } = useSidebar();
+  const { isExpanded, isHovered } = useSidebar();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -31,7 +31,7 @@ export default function AdminLayout({
 
     // Role-based protection for routes
     const superAdminOnlyPaths = ["/equipe", "/parametres", "/demandes", "/dashboard", "/stages"];
-    const isRestricted = superAdminOnlyPaths.some(path => 
+    const isRestricted = superAdminOnlyPaths.some(path =>
       pathname === path || pathname.startsWith(`${path}/`)
     );
 
@@ -40,10 +40,9 @@ export default function AdminLayout({
     }
   }, [currentUser, hydrated, pathname, router]);
 
-  // Dynamic class for main content margin based on sidebar state
-  const mainContentMargin = isMobileOpen
-    ? "ml-0"
-    : isExpanded || isHovered
+  // On mobile (<lg): sidebar is hidden (translate-x-full), content = full width, no margin
+  // On desktop (lg+): sidebar is always visible, content offset by sidebar width
+  const mainContentMargin = isExpanded || isHovered
     ? "lg:ml-[290px]"
     : "lg:ml-[90px]";
 
@@ -59,18 +58,22 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen xl:flex">
-      {/* Sidebar and Backdrop */}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      {/* Sidebar — fixed, hidden on mobile until toggled */}
       <AppSidebar />
+      {/* Overlay backdrop for mobile sidebar */}
       <Backdrop />
-      {/* Main Content Area */}
+
+      {/* Main content — always full width on mobile, offset by sidebar on desktop */}
       <div
-        className={`flex-1 transition-all  duration-300 ease-in-out ${mainContentMargin}`}
+        className={`flex flex-col min-h-screen transition-all duration-300 ease-in-out ${mainContentMargin}`}
       >
-        {/* Header */}
+        {/* Sticky Header */}
         <AppHeader />
         {/* Page Content */}
-        <div className="p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6">{children}</div>
+        <main className="flex-1 p-4 mx-auto w-full max-w-screen-2xl md:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

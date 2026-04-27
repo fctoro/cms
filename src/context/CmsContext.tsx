@@ -770,6 +770,11 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
           : article,
       ),
     }));
+    void fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "article_view", id: articleId }),
+    });
   }, []);
 
   const trackArticleLinkClick = useCallback((articleId: string) => {
@@ -784,6 +789,11 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
           : article,
       ),
     }));
+    void fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "article_link", id: articleId }),
+    });
   }, []);
 
   const trackStageView = useCallback((stageId: string) => {
@@ -793,6 +803,11 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
         s.id === stageId ? { ...s, metrics: { ...s.metrics, views: s.metrics.views + 1 } } : s,
       ),
     }));
+    void fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "stage_view", id: stageId }),
+    });
   }, []);
 
   const trackStageApplication = useCallback((stageId: string) => {
@@ -804,6 +819,11 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
           : s,
       ),
     }));
+    void fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "stage_application", id: stageId }),
+    });
   }, []);
 
   const trackStageContact = useCallback((stageId: string) => {
@@ -815,6 +835,11 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
           : s,
       ),
     }));
+    void fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "stage_contact", id: stageId }),
+    });
   }, []);
 
   const trackPartnerClick = useCallback((partnerId: string) => {
@@ -824,6 +849,11 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
         p.id === partnerId ? { ...p, clicks: (p.clicks || 0) + 1 } : p,
       ),
     }));
+    void fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "partner_click", id: partnerId }),
+    });
   }, []);
 
   const trackHomeVisit = useCallback(() => {
@@ -834,6 +864,11 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
         visits: prev.homePage.visits + 1,
       },
     }));
+    void fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "home_visit" }),
+    });
   }, []);
 
   const trackHomeCta = useCallback(() => {
@@ -844,6 +879,11 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
         ctaClicks: prev.homePage.ctaClicks + 1,
       },
     }));
+    void fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "home_cta" }),
+    });
   }, []);
 
   const refreshUnreadDemandesCount = useCallback(async () => {

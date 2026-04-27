@@ -813,3 +813,59 @@ span.flatpickr-weekday,
 .dark .cms-prose blockquote {
   color: var(--color-gray-300);
 }
+
+/* =============================================
+   MOBILE RESPONSIVE UTILITIES
+   ============================================= */
+
+/* Tables: horizontal scroll on small screens */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent content overflow on mobile */
+@media (max-width: 768px) {
+  /* Ensure images and media don't overflow */
+  img, video, iframe {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Improve button tap targets on mobile */
+  button, a, [role="button"] {
+    min-height: 36px;
+  }
+
+  /* Compact page headers on mobile */
+  .page-header-mobile {
+    padding: 1rem;
+  }
+
+  /* Full-width cards on mobile */
+  .card-mobile-full {
+    border-radius: 1rem;
+    margin-left: -0.25rem;
+    margin-right: -0.25rem;
+  }
+}
+
+/* Grid responsive overrides for tournament/category pages */
+@media (max-width: 640px) {
+  /* Reduce rounded corners on mobile to save space */
+  .rounded-\[40px\], .rounded-\[45px\] {
+    border-radius: 1.25rem !important;
+  }
+
+  .rounded-3xl {
+    border-radius: 1rem !important;
+  }
+}
+
+/* Mobile sidebar z-index correction */
+@media (max-width: 1023px) {
+  /* Ensure the main content never goes under the header */
+  main, .main-content {
+    padding-top: 0;
+  }
+}

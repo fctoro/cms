@@ -52,9 +52,9 @@ export default function EditionDashboard() {
       <PageBreadCrumb pageTitle={tournament?.name || "Détails de l'Édition"} />
 
       {/* Hero Section */}
-      <div className="relative overflow-hidden bg-white dark:bg-white/[0.03] p-10 rounded-[40px] border border-gray-100 dark:border-gray-800 shadow-sm transition-all duration-500">
+      <div className="relative overflow-hidden bg-white dark:bg-white/[0.03] p-6 md:p-10 rounded-3xl md:rounded-[40px] border border-gray-100 dark:border-gray-800 shadow-sm transition-all duration-500">
         <div className="relative z-10">
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
             <div className="px-4 py-1.5 rounded-full bg-brand-500/10 text-brand-500 text-[10px] font-black uppercase tracking-widest">
               Édition {tournament?.season}
             </div>
@@ -63,10 +63,10 @@ export default function EditionDashboard() {
             </div>
           </div>
           
-          <h1 className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white uppercase tracking-tighter mb-4 leading-none">
+          <h1 className="text-3xl sm:text-5xl md:text-7xl font-black text-gray-900 dark:text-white uppercase tracking-tighter mb-4 leading-none">
             {tournament?.name}
           </h1>
-          <p className="text-lg text-gray-500 dark:text-gray-400 font-medium max-w-2xl leading-relaxed">
+          <p className="text-base text-gray-500 dark:text-gray-400 font-medium max-w-2xl leading-relaxed">
             {tournament?.description || "Aucune description fournie pour cette édition."}
           </p>
         </div>
@@ -76,11 +76,11 @@ export default function EditionDashboard() {
       </div>
 
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-           <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Championnats par catégorie</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+           <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Championnats par catégorie</h2>
            <button 
              onClick={() => router.push(`/club/flag-day/${id}/categories/nouveau`)}
-             className="px-6 py-3 bg-brand-500 text-white rounded-2xl font-bold text-sm hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/20"
+             className="px-5 py-2.5 bg-brand-500 text-white rounded-2xl font-bold text-sm hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/20 self-start sm:self-auto whitespace-nowrap"
            >
              + Ajouter une catégorie
            </button>

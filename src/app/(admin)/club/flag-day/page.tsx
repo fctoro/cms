@@ -130,33 +130,33 @@ export default function FlagDayPage() {
       <PageBreadCrumb pageTitle="Championnats Flag Day" />
 
       {/* Header Section Premium */}
-      <div className="relative group overflow-hidden bg-white dark:bg-[#1A2D54]/20 p-8 rounded-[40px] border border-gray-100 dark:border-white/5 shadow-sm">
-        <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity">
-           <svg className="w-64 h-64 text-brand-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+      <div className="relative group overflow-hidden bg-white dark:bg-[#1A2D54]/20 p-6 md:p-8 rounded-3xl md:rounded-[40px] border border-gray-100 dark:border-white/5 shadow-sm">
+        <div className="absolute top-0 right-0 p-8 md:p-12 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity">
+           <svg className="w-40 h-40 md:w-64 md:h-64 text-brand-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
         </div>
         
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
           <div>
-            <h1 className="text-4xl font-black text-[#1A2D54] dark:text-white tracking-tighter uppercase italic">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#1A2D54] dark:text-white tracking-tighter uppercase italic">
               Gestion <span className="text-brand-500">Flag Day</span>
             </h1>
-            <p className="mt-2 text-gray-500 dark:text-gray-400 font-medium max-w-xl">
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 font-medium max-w-xl">
               Pilotez l'excellence académique du FC TORO. Gérez les tournois, suivez les classements et célébrez les victoires en temps réel.
             </p>
           </div>
           
           <Link
             href="/club/flag-day/nouveau"
-            className="flex items-center gap-4 bg-brand-500 hover:bg-brand-600 text-white px-10 py-5 rounded-3xl font-black uppercase tracking-widest transition-all hover:shadow-2xl hover:shadow-brand-500/40 active:scale-95 group"
+            className="flex w-full sm:w-auto items-center justify-center gap-3 bg-brand-500 hover:bg-brand-600 text-white px-6 md:px-10 py-4 md:py-5 rounded-2xl md:rounded-3xl font-black uppercase tracking-widest transition-all hover:shadow-2xl hover:shadow-brand-500/40 active:scale-95 group text-sm"
           >
             Nouveau Tournoi
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
           </Link>
         </div>
       </div>
 
       {/* Tournament Grid */}
-      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid gap-5 md:gap-8 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {loading ? (
           <div className="col-span-full py-24 flex flex-col items-center justify-center gap-6 bg-white dark:bg-white/5 rounded-[40px] border border-dashed border-gray-200 dark:border-white/10">
             <Loader />
@@ -176,7 +176,7 @@ export default function FlagDayPage() {
             return (
               <div
                 key={tournament.id}
-                className="group relative flex flex-col justify-between bg-white dark:bg-[#1A2D54]/10 rounded-[40px] border border-gray-100 dark:border-white/5 p-8 transition-all duration-500 hover:shadow-[0_20px_60px_rgba(0,0,0,0.05)] dark:hover:bg-[#1A2D54]/20 hover:-translate-y-1"
+                className="group relative flex flex-col justify-between bg-white dark:bg-[#1A2D54]/10 rounded-3xl md:rounded-[40px] border border-gray-100 dark:border-white/5 p-5 md:p-8 transition-all duration-500 hover:shadow-[0_20px_60px_rgba(0,0,0,0.05)] dark:hover:bg-[#1A2D54]/20 hover:-translate-y-1"
               >
                 {/* Trash Button - Super Admin only */}
                 {currentUser?.role === "super_admin" && (
