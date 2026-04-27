@@ -14,7 +14,7 @@ export async function GET(request) {
     const homeStats = homeRes.rows[0] || { visits: 0, cta_clicks: 0 };
 
     // 2. Most read articles
-    const articlesRes = await db.query("SELECT id, title, views, link_clicks FROM articles ORDER BY views DESC LIMIT 5");
+    const articlesRes = await db.query("SELECT id, title_fr as title, views, link_clicks FROM articles ORDER BY views DESC LIMIT 5");
     const topArticles = articlesRes.rows;
 
     // 3. Most viewed stages
