@@ -625,11 +625,30 @@ export default function DemandesPage() {
                   </TableRow>
                 ) : filteredDemandes.length === 0 ? (
                   <TableRow>
-                    <td colSpan={5} className="py-20 flex flex-col items-center justify-center text-center">
-                       <div className="bg-gray-50 dark:bg-white/5 p-4 rounded-full mb-4">
-                          <EyeIcon className="w-8 h-8 text-gray-300" />
+                    <td colSpan={5} className="py-20">
+                      <div className="flex flex-col items-center justify-center text-center">
+                       <div className="relative flex items-center justify-center w-16 h-16 rounded-full bg-brand-500/10 border border-brand-500/20 shadow-xl shadow-brand-500/20 mb-4">
+                         {activeTab === "contact" ? (
+                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-500"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                         ) : activeTab === "joueur" ? (
+                           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-500"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                         ) : activeTab === "fan" ? (
+                           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-500"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                         ) : (
+                           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-500"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                         )}
+                         <span className="absolute top-1 right-1 flex h-3 w-3">
+                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+                           <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-500 border-2 border-white dark:border-gray-900"></span>
+                         </span>
                        </div>
-                       <p className="text-gray-400 font-medium">Aucun résultat dans cette catégorie.</p>
+                       <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2 uppercase tracking-tight">
+                         {activeTab === "contact" ? "BOÎTE DE RÉCEPTION VIDE" : activeTab === "joueur" ? "AUCUNE INSCRIPTION" : activeTab === "fan" ? "AUCUN FAN" : "AUCUNE CANDIDATURE"}
+                       </h3>
+                       <p className="text-gray-500 dark:text-gray-400 text-sm max-w-sm">
+                         {activeTab === "contact" ? "Vous n'avez aucun message de contact pour le moment." : activeTab === "joueur" ? "Vous n'avez reçu aucune demande d'inscription pour le moment." : activeTab === "fan" ? "Vous n'avez reçu aucune demande de fan pour le moment." : "Vous n'avez reçu aucune candidature pour le moment."}
+                       </p>
+                      </div>
                     </td>
                   </TableRow>
                 ) : (

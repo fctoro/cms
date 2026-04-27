@@ -229,7 +229,7 @@ function mapDbUser(row: Record<string, unknown>): CmsUser {
     password: "",
     role: mapRole(String(row.role ?? "")),
     title: String(row.title ?? ""),
-    avatar: (row.avatar && row.avatar !== "/images/user/owner.jpg") ? String(row.avatar) : null,
+    avatar: (row.avatar && row.avatar !== "/images/user/owner.jpg") ? String(row.avatar) : "",
     bio: String(row.bio ?? ""),
     active: Boolean(row.active ?? row.actif ?? true),
     lastLoginAt: row.last_login_at ? String(row.last_login_at) : null,
@@ -245,7 +245,7 @@ function createCurrentUserFromSession() {
   return {
     ...session.user,
     role: mapRole(session.user.role),
-    avatar: (session.user.avatar && session.user.avatar !== "/images/user/owner.jpg") ? session.user.avatar : null,
+    avatar: (session.user.avatar && session.user.avatar !== "/images/user/owner.jpg") ? session.user.avatar : "",
     title: session.user.title || "Administration",
     bio: session.user.bio || "",
     password: "",

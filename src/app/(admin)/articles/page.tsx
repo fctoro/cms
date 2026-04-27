@@ -16,6 +16,25 @@ export default function ArticlesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [articleToDelete, setArticleToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const confirmDelete = async () => {
+    if (!articleToDelete) return;
+    setIsDeleting(true);
+    const token = getAdminToken();
+    if (token) {
+      const response = await fetch(`/api/admin/articles/${articleToDelete}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        setArticles((prev) => prev.filter((item) => item.id !== articleToDelete));
+      }
+    }
+    setArticleToDelete(null);
+    setIsDeleting(false);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -139,49 +158,24 @@ export default function ArticlesPage() {
                       {article.title}
                     </h3>
 
-                    {/* Metrics */}
-                    <div className="mt-auto flex items-center gap-4 border-t border-gray-50 pt-4 dark:border-gray-800">
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                        <EyeIcon className="size-4 opacity-70" />
-                        <span>{formatNumber(article.metrics.views)}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                        <PencilIcon className="size-4 opacity-70" />
-                        <span>{formatNumber(article.metrics.linkClicks)} clics</span>
-                      </div>
-                    </div>
 
-                    {/* Actions Overlay / Menu */}
-                    <div className="mt-5 flex items-center gap-2">
-                       <Link
-                          href={`/articles/${article.id}`}
-                          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gray-50 py-2.5 text-xs font-bold text-gray-700 transition hover:bg-gray-100 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
-                        >
-                          <EyeIcon className="size-4" />
-                          Aperçu
-                        </Link>
+
+                    {/* Actions */}
+                    <div className="mt-auto pt-5 flex items-center gap-3">
                         <Link
                           href={`/articles/${article.id}/modifier`}
-                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:border-brand-500 hover:text-brand-500 dark:border-gray-800 dark:text-gray-400"
+                          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gray-100 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-200 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
                         >
-                          <PencilIcon className="size-4" />
+                          <PencilIcon className="w-5 h-5" />
+                          Modifier
                         </Link>
                         <button
                           type="button"
-                          onClick={async () => {
-                            if (!confirm("Voulez-vous vraiment supprimer cet article ?")) return;
-                            const token = getAdminToken();
-                            if (!token) return;
-                            const response = await fetch(`/api/admin/articles/${article.id}`, {
-                              method: "DELETE",
-                              headers: { Authorization: `Bearer ${token}` },
-                            });
-                            if (!response.ok) return;
-                            setArticles((prev) => prev.filter((item) => item.id !== article.id));
-                          }}
-                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:border-error-500 hover:text-error-500 dark:border-gray-800 dark:text-gray-400"
+                          onClick={() => setArticleToDelete(article.id)}
+                          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200/50 bg-red-50 py-2.5 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-100 hover:border-red-200 dark:border-red-900/30 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 dark:hover:border-red-500/30"
                         >
-                          <TrashBinIcon className="size-4" />
+                          <TrashBinIcon className="w-5 h-5" />
+                          Supprimer
                         </button>
                     </div>
                   </div>
@@ -191,6 +185,47 @@ export default function ArticlesPage() {
           </div>
         )}
       </SectionCard>
+
+      {/* Delete Confirmation Modal */}
+      {articleToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 overflow-hidden relative border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in duration-200">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-red-500"></div>
+            <div className="flex flex-col items-center text-center mt-2">
+              <div className="w-16 h-16 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-5 shadow-inner">
+                <TrashBinIcon className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">Confirmer la suppression</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 leading-relaxed px-2">
+                Êtes-vous sûr de vouloir supprimer cet article ? Cette action est définitive.
+              </p>
+              
+              <div className="flex w-full gap-3">
+                <button
+                  type="button"
+                  onClick={() => setArticleToDelete(null)}
+                  disabled={isDeleting}
+                  className="flex-1 py-3 px-4 rounded-xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                  className="flex-1 py-3 px-4 rounded-xl font-semibold text-white bg-red-500 hover:bg-red-600 shadow-md shadow-red-500/20 transition-all flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-red-500/30 active:scale-[0.98]"
+                >
+                  {isDeleting ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  ) : (
+                    "Supprimer"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

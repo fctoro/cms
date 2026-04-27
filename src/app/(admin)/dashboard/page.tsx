@@ -62,7 +62,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="Articles publies" value={formatNumber(publishedArticles.length)} />
         <MetricCard label="Recrutements actifs" value={formatNumber(publishedStages.length)} />
-        <MetricCard label="Partenaires" value={formatNumber(partners.length)} />
+
         <MetricCard label="Vues articles" value={formatNumber(totalArticleViews)} />
         <MetricCard label="Candidatures recrutement" value={formatNumber(totalStageApplications)} />
       </div>
@@ -79,7 +79,6 @@ export default function DashboardPage() {
                   <th className="pb-3">Contenu</th>
                   <th className="pb-3">Statut</th>
                   <th className="pb-3">Date</th>
-                  <th className="pb-3 text-right">Tracking</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -107,9 +106,6 @@ export default function DashboardPage() {
                       </td>
                       <td className="py-4 text-gray-500 dark:text-gray-400">
                         {formatDate(entry.publishedAt || entry.updatedAt)}
-                      </td>
-                      <td className="py-4 text-right text-gray-500 dark:text-gray-400">
-                        {metric}
                       </td>
                     </tr>
                   );
@@ -182,12 +178,7 @@ export default function DashboardPage() {
                 {formatNumber(homePage.ctaClicks)}
               </p>
             </div>
-            <div className="rounded-2xl border border-gray-200 px-4 py-5 dark:border-gray-800">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Clics partenaires</p>
-              <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white/90">
-                {formatNumber(totalPartnerClicks)}
-              </p>
-            </div>
+
             <div className="rounded-2xl border border-gray-200 px-4 py-5 dark:border-gray-800">
               <p className="text-sm text-gray-500 dark:text-gray-400">Taux CTA / visite</p>
               <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white/90">

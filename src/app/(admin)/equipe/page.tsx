@@ -81,7 +81,7 @@ export default function EquipePage() {
       const res = await saveUser({
         ...formData,
         id: editingUser?.id || "",
-        avatar: editingUser?.avatar || null,
+        avatar: editingUser?.avatar || "",
         bio: editingUser?.bio || "",
         lastLoginAt: editingUser?.lastLoginAt || null,
       });
