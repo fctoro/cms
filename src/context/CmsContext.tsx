@@ -229,7 +229,7 @@ function mapDbUser(row: Record<string, unknown>): CmsUser {
     password: "",
     role: mapRole(String(row.role ?? "")),
     title: String(row.title ?? ""),
-    avatar: String(row.avatar ?? "/images/user/owner.jpg"),
+    avatar: row.avatar ? String(row.avatar) : null,
     bio: String(row.bio ?? ""),
     active: Boolean(row.active ?? row.actif ?? true),
     lastLoginAt: row.last_login_at ? String(row.last_login_at) : null,
@@ -245,7 +245,7 @@ function createCurrentUserFromSession() {
   return {
     ...session.user,
     role: mapRole(session.user.role),
-    avatar: session.user.avatar || "/images/user/owner.jpg",
+    avatar: session.user.avatar || null,
     title: session.user.title || "Administration",
     bio: session.user.bio || "",
     password: "",
@@ -482,6 +482,7 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
       articles: prev.articles.filter((article) => article.status === "published"),
       users: [],
     }));
+    window.location.href = "/signin";
   }, []);
 
   const deleteArticle = useCallback((articleId: string) => {
@@ -904,6 +905,36 @@ export const CmsProvider = ({ children }: { children: React.ReactNode }) => {
       refreshUnreadDemandesCount();
     }
   }, [hydrated, currentUser, refreshUnreadDemandesCount]);
+
+  // Inactivity Auto-Logout (5 minutes)
+  useEffect(() => {
+    if (!hydrated || !currentUser) return;
+
+    let inactivityTimer: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        signOut();
+      }, 5 * 60 * 1000); // 5 minutes
+    };
+
+    const events = ["mousedown", "mousemove", "keypress", "scroll", "touchstart"];
+    const handleActivity = () => resetTimer();
+
+    events.forEach((event) => {
+      document.addEventListener(event, handleActivity);
+    });
+
+    resetTimer();
+
+    return () => {
+      events.forEach((event) => {
+        document.removeEventListener(event, handleActivity);
+      });
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+    };
+  }, [hydrated, currentUser, signOut]);
 
   const contextValue = useMemo(
     () => ({

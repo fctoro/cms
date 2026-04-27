@@ -57,7 +57,7 @@ export default function SignInForm() {
             password: "",
             role: payload.user.role,
             title: "Administration",
-            avatar: "/images/user/owner.jpg",
+            avatar: payload.user.avatar || null,
             bio: "",
             active: true,
             lastLoginAt: new Date().toISOString(),

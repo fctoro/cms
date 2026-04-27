@@ -6,6 +6,7 @@ import PageBreadCrumb from "@/components/common/PageBreadCrumb";
 import { cn } from "@/components/common/CmsShared";
 import { useCms } from "@/context/CmsContext";
 import Loader from "@/components/common/Loader";
+import { getAdminToken } from "@/lib/admin-auth";
 
 interface TournamentItem {
   id: string;
@@ -60,9 +61,13 @@ export default function FlagDayPage() {
 
   const togglePublication = async (id: string, currentStatus: boolean) => {
     try {
+      const token = getAdminToken();
       const res = await fetch(`/api/tournaments/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ is_published: !currentStatus }),
       });
 
@@ -80,15 +85,20 @@ export default function FlagDayPage() {
 
     try {
       setLoading(true);
+      const token = getAdminToken();
       const res = await fetch(`/api/tournaments/${tournamentToDelete.id}`, {
         method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (res.ok) {
         setTournaments(tournaments.filter(t => t.id !== tournamentToDelete.id));
         showToast("Tournoi supprimé avec succès.");
       } else {
-        showToast("Erreur lors de la suppression.", "error");
+        const errorData = await res.json();
+        showToast(errorData.error || "Erreur lors de la suppression.", "error");
       }
     } catch (err) {
       showToast("Erreur réseau.", "error");

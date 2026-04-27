@@ -28,6 +28,10 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
+  const { requireAuth } = require("@/server/auth");
+  const auth = requireAuth(request);
+  if (auth.error) return auth.error;
+
   try {
     const { id } = await params;
     const body = await request.json();

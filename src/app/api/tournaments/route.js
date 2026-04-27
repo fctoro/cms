@@ -23,6 +23,10 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  const { requireAuth } = require("@/server/auth");
+  const auth = requireAuth(request);
+  if (auth.error) return auth.error;
+
   try {
     const body = await request.json();
 

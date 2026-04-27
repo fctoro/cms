@@ -26,7 +26,6 @@ export default function UserDropdown() {
   const handleSignOut = () => {
     signOut();
     closeDropdown();
-    router.push("/signin");
   };
 
   return (
@@ -39,7 +38,7 @@ export default function UserDropdown() {
           {currentUser.avatar ? (
             <Image width={44} height={44} src={currentUser.avatar} alt={currentUser.name} className="h-full w-full object-cover" />
           ) : (
-            <span className="text-xs font-bold text-gray-500 uppercase">
+            <span className="flex h-full w-full items-center justify-center bg-brand-500 text-xs font-bold text-white uppercase">
               {currentUser.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
             </span>
           )}

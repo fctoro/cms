@@ -142,7 +142,7 @@ export default function LivePage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">URL YouTube (Optionnel : si vide, prend la vidéo par défaut)</label>
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">URL YouTube (Si vide, le bouton Live restera gris sur le site)</label>
             <input
               type="text"
               name="youtube_url"
