@@ -1,28 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase-client";
+import { supabaseAdmin as supabase } from "@/lib/supabase-server";
 
 // Inscription massive d'équipes à un championnat
 export async function POST(request, { params }) {
   try {
     const { id: competitionId } = await params;
     const body = await request.json();
-    const { teamIds, category } = body;
+    const { teamIds, categoryId } = body;
 
     if (!teamIds || !Array.isArray(teamIds) || teamIds.length === 0) {
       return NextResponse.json({ error: "Liste d'équipes requise" }, { status: 400 });
     }
 
-    // 1. Nettoyer les anciennes inscriptions pour éviter les doublons
+    if (!categoryId) {
+      return NextResponse.json({ error: "ID de catégorie requis" }, { status: 400 });
+    }
+
+    // 1. Nettoyer les anciennes inscriptions pour cette catégorie spécifique
     await supabase
       .from("flagday_competition_teams")
       .delete()
-      .eq("competition_id", competitionId);
+      .eq("competition_id", competitionId)
+      .eq("category_id", categoryId);
 
     // 2. Préparer les données d'insertion
     const teamsData = teamIds.map((teamId) => ({
       competition_id: competitionId,
+      category_id: categoryId,
       team_id: teamId,
-      category: category || "U9",
     }));
 
     // 3. Insérer les nouvelles équipes
@@ -49,14 +54,16 @@ export async function POST(request, { params }) {
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
-    const { data, error } = await supabase
+    const { searchParams } = new URL(request.url);
+    const categoryId = searchParams.get("categoryId");
+
+    let query = supabase
       .from("flagday_competition_teams")
       .select(
         `
         id,
         team_id,
-        logo_url,
-        category,
+        category_id,
         flagday_teams (
           id,
           name,
@@ -66,8 +73,13 @@ export async function GET(request, { params }) {
         )
       `
       )
-      .eq("competition_id", id)
-      .order("sort_order", { ascending: true });
+      .eq("competition_id", id);
+    
+    if (categoryId) {
+      query = query.eq("category_id", categoryId);
+    }
+
+    const { data, error } = await query.order("sort_order", { ascending: true });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

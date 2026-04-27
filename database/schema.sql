@@ -311,6 +311,7 @@ CREATE TABLE public.flagday_teams (
 CREATE TABLE public.flagday_competition_teams (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   competition_id uuid NOT NULL,
+  category_id uuid REFERENCES public.flagday_categories(id) ON DELETE CASCADE, -- Link to specific category
   team_id uuid NOT NULL,
   sort_order integer NOT NULL DEFAULT 0,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -321,7 +322,8 @@ CREATE TABLE public.flagday_competition_teams (
 
 CREATE TABLE public.flagday_matches (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  competition_id uuid, -- Reference to competition table
+  competition_id uuid, -- Reference to edition
+  category_id uuid REFERENCES public.flagday_categories(id) ON DELETE CASCADE, -- Reference to specific category
   round character varying NOT NULL,
   kickoff timestamp with time zone NOT NULL,
   status character varying NOT NULL DEFAULT 'scheduled',

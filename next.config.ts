@@ -17,6 +17,12 @@ const remotePatterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
     protocol: "https",
     hostname: "www.ixpap.com",
   },
+  // Supabase Storage (hardcoded fallback)
+  {
+    protocol: "https",
+    hostname: "zvgqendnhealtfmohysf.supabase.co",
+    pathname: "/storage/v1/object/public/**",
+  },
 ];
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

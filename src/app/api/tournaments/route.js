@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase-client";
+import { supabaseAdmin as supabase } from "@/lib/supabase-server";
 
 export async function GET() {
   try {
@@ -34,7 +34,7 @@ export async function POST(request) {
           slug: body.name.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, ''),
           season: body.season || new Date().getFullYear().toString(),
           description: body.description || "",
-          age_category: body.age_category || "",
+          age_category: "GLOBAL", // Default to GLOBAL for the edition
           status: "preparation",
           is_published: false,
           active: true,
@@ -46,36 +46,18 @@ export async function POST(request) {
     if (error) {
       if (error.code === "23505") {
         return NextResponse.json(
-          { error: "Un championnat avec ce nom existe déjà. Veuillez en choisir un autre." },
+          { error: "Une édition avec ce nom existe déjà." },
           { status: 400 }
         );
       }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const tournamentId = data.id;
-
-    // 2. Créer la catégorie associée (une seule par tournoi maintenant)
-    if (body.age_category) {
-      const { error: catError } = await supabase
-        .from("flagday_categories")
-        .insert({
-          competition_id: tournamentId,
-          name: body.age_category,
-          sort_order: 1,
-          active: true,
-        });
-
-      if (catError) {
-        console.error("Erreur creation categorie:", catError.message);
-      }
-    }
-
     return NextResponse.json({ data, success: true }, { status: 201 });
   } catch (error) {
     console.error("Erreur:", error);
     return NextResponse.json(
-      { error: "Erreur lors de la création du tournoi" },
+      { error: "Erreur lors de la création de l'édition" },
       { status: 500 }
     );
   }

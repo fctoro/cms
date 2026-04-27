@@ -1,69 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase-client";
+import { supabaseAdmin as supabase } from "@/lib/supabase-server";
 
 export async function POST(request, { params }) {
   try {
     const { id } = await params;
+    const body = await request.json();
+    const { categoryId } = body;
 
-    // 1. Récupérer les infos du tournoi (catégorie d'âge)
-    const { data: tournament, error: tourError } = await supabase
-      .from("flagday_competitions")
-      .select("age_category")
-      .eq("id", id)
-      .single();
-
-    if (tourError || !tournament) {
-      return NextResponse.json({ error: "Tournoi non trouvé" }, { status: 404 });
+    if (!categoryId) {
+      return NextResponse.json({ error: "ID de catégorie requis" }, { status: 400 });
     }
 
-    const { age_category: category } = tournament;
-
-    if (!category) {
-      return NextResponse.json({ error: "Aucune catégorie configurée pour ce tournoi" }, { status: 400 });
-    }
-
-    // 2. Récupérer l'ID de la catégorie
-    const { data: catData, error: catError } = await supabase
+    // 1. Récupérer les infos de la catégorie
+    const { data: categoryData, error: catError } = await supabase
       .from("flagday_categories")
-      .select("id")
-      .eq("competition_id", id)
-      .eq("name", category)
+      .select("*")
+      .eq("id", categoryId)
       .single();
 
-    if (catError || !catData) {
-      return NextResponse.json({ error: `La catégorie ${category} n'est pas initialisée` }, { status: 404 });
+    if (catError || !categoryData) {
+      return NextResponse.json({ error: "Catégorie non trouvée" }, { status: 404 });
     }
 
-    // 3. Récupérer les équipes inscrites
+    const categoryName = categoryData.name;
+
+    // 2. Récupérer les équipes inscrites pour CETTE catégorie
     const { data: compTeams, error: teamsError } = await supabase
       .from("flagday_competition_teams")
       .select("team_id")
-      .eq("competition_id", id);
+      .eq("competition_id", id)
+      .eq("category_id", categoryId);
 
     if (teamsError) throw teamsError;
 
     if (!compTeams || compTeams.length < 8) {
       return NextResponse.json({ 
-        error: `Il faut exactement 8 équipes pour générer les poules (Actuel: ${compTeams?.length || 0})` 
+        error: `Il faut au moins 8 équipes pour générer les poules (Actuel: ${compTeams?.length || 0})` 
       }, { status: 400 });
     }
 
-    // Limiter à 8 si plus (on prend les 8 premières inscrites)
+    // Limiter à 8 si plus
     const teamsToDraw = compTeams.slice(0, 8);
 
-    // 4. Mélanger et diviser en 2 groupes de 4
+    // 3. Mélanger et diviser en 2 groupes de 4
     const shuffledTeams = [...teamsToDraw].sort(() => Math.random() - 0.5);
     const groupA = shuffledTeams.slice(0, 4);
     const groupB = shuffledTeams.slice(4, 8);
 
-    // Nettoyage des anciens tirages/matchs
-    await supabase.from("flagday_standings").delete().eq("category_id", catData.id);
-    await supabase.from("flagday_matches").delete().eq("competition_id", id).filter("round", "ilike", `${category}%`);
+    // Nettoyage des anciens tirages/matchs pour CETTE catégorie
+    await supabase.from("flagday_standings").delete().eq("category_id", categoryId);
+    await supabase.from("flagday_matches").delete().eq("category_id", categoryId);
 
-    // 5. Insérer dans flagday_standings
+    // 4. Insérer dans flagday_standings
     const standingsData = [
-      ...groupA.map(t => ({ category_id: catData.id, team_id: t.team_id, group_name: 'A' })),
-      ...groupB.map(t => ({ category_id: catData.id, team_id: t.team_id, group_name: 'B' }))
+      ...groupA.map(t => ({ category_id: categoryId, team_id: t.team_id, group_name: 'A' })),
+      ...groupB.map(t => ({ category_id: categoryId, team_id: t.team_id, group_name: 'B' }))
     ];
 
     const { error: standingsErr } = await supabase
@@ -72,14 +63,15 @@ export async function POST(request, { params }) {
 
     if (standingsErr) throw standingsErr;
 
-    // 6. Générer les matchs de poule (Round Robin)
+    // 5. Générer les matchs de poule (Round Robin)
     const matches = [];
     const generateMatchesForGroup = (group, groupName) => {
       for (let i = 0; i < group.length; i++) {
         for (let j = i + 1; j < group.length; j++) {
           matches.push({
             competition_id: id,
-            round: `${category} - Groupe ${groupName}`,
+            category_id: categoryId,
+            round: `${categoryName} - Groupe ${groupName}`,
             home_team_id: group[i].team_id,
             away_team_id: group[j].team_id,
             status: 'scheduled',
@@ -99,13 +91,13 @@ export async function POST(request, { params }) {
 
     if (matchesErr) throw matchesErr;
 
-    // 7. Mettre à jour le statut du tournoi
+    // 6. Mettre à jour le statut du tournoi global si nécessaire
     await supabase.from("flagday_competitions").update({ status: 'in_progress' }).eq("id", id);
 
     return NextResponse.json({
       success: true,
       data: {
-        message: `Tirage terminé pour ${category}. 2 groupes de 4 créés.`,
+        message: `Tirage terminé pour ${categoryName}. 2 groupes de 4 créés.`,
       }
     });
   } catch (error) {

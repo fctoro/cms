@@ -1,36 +1,33 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase-client";
+import { supabaseAdmin as supabase } from "@/lib/supabase-server";
 
 export async function GET(request, { params }) {
   try {
     const { id: competitionId } = await params;
+    const { searchParams } = new URL(request.url);
+    const categoryId = searchParams.get("categoryId");
 
-    // 1. Récupérer les infos du tournoi (catégorie)
-    const { data: tournament } = await supabase
-      .from("flagday_competitions")
-      .select("age_category")
-      .eq("id", competitionId)
+    if (!categoryId) {
+      return NextResponse.json({ error: "ID de catégorie requis" }, { status: 400 });
+    }
+
+    // 1. Récupérer les infos de la catégorie
+    const { data: categoryData } = await supabase
+      .from("flagday_categories")
+      .select("name")
+      .eq("id", categoryId)
       .single();
 
-    const category = tournament?.age_category || "U9";
+    const categoryName = categoryData?.name || "U9";
 
     // 2. Récupérer les groupes assignés lors du tirage
-    const { data: catData } = await supabase
-      .from("flagday_categories")
-      .select("id")
-      .eq("competition_id", competitionId)
-      .eq("name", category)
-      .single();
-
-    if (!catData) return NextResponse.json({ data: {}, success: true });
-
     const { data: standingsMapping } = await supabase
       .from("flagday_standings")
       .select("team_id, group_name, flagday_teams:team_id(id, name, logo_url, color)")
-      .eq("category_id", catData.id);
+      .eq("category_id", categoryId);
 
     if (!standingsMapping || standingsMapping.length === 0) {
-      return NextResponse.json({ data: {}, success: true });
+      return NextResponse.json({ data: { [categoryName]: [] }, success: true });
     }
 
     // 3. Initialiser les stats
@@ -48,19 +45,19 @@ export async function GET(request, { params }) {
         won: 0,
         drawn: 0,
         lost: 0,
-        goalsFor: 0,
-        goalsAgainst: 0,
+        goals_for: 0,
+        goals_against: 0,
         goalDifference: 0,
       };
     });
 
-    // 4. Récupérer et traiter les matchs terminés
+    // 4. Récupérer et traiter les matchs terminés pour CETTE catégorie
     const { data: matches } = await supabase
       .from("flagday_matches")
       .select("*")
-      .eq("competition_id", competitionId)
+      .eq("category_id", categoryId)
       .eq("status", "finished")
-      .filter("round", "ilike", `%${category}%Groupe%`);
+      .ilike("round", "%Groupe%");
 
     matches?.forEach((match) => {
       const home = teamStats[match.home_team_id];
@@ -69,10 +66,10 @@ export async function GET(request, { params }) {
       if (home && away) {
         home.played += 1;
         away.played += 1;
-        home.goalsFor += match.home_score || 0;
-        home.goalsAgainst += match.away_score || 0;
-        away.goalsFor += match.away_score || 0;
-        away.goalsAgainst += match.home_score || 0;
+        home.goals_for += match.home_score || 0;
+        home.goals_against += match.away_score || 0;
+        away.goals_for += match.away_score || 0;
+        away.goals_against += match.home_score || 0;
 
         if (match.home_score > match.away_score) {
           home.won += 1;
@@ -94,10 +91,10 @@ export async function GET(request, { params }) {
     // 5. Calculer la différence de buts et trier
     const result = Object.values(teamStats).map(s => ({
       ...s,
-      goalDifference: s.goalsFor - s.goalsAgainst
-    })).sort((a, b) => b.points - a.points || b.goalDifference - a.goalDifference || b.goalsFor - a.goalsFor);
+      goalDifference: s.goals_for - s.goals_against
+    })).sort((a, b) => b.points - a.points || b.goalDifference - a.goalDifference || b.goals_for - a.goals_for);
 
-    return NextResponse.json({ data: { [category]: result }, success: true });
+    return NextResponse.json({ data: { [categoryName]: result }, success: true });
   } catch (error) {
     console.error("Erreur standings:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
