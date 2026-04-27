@@ -60,8 +60,7 @@ function SlidePreview({ slide }: { slide: Partial<Slide> }) {
           </span>
         )}
         <h3
-          className="text-2xl font-black uppercase leading-tight text-white sm:text-3xl"
-          style={{ fontFamily: "Impact, Arial Black, sans-serif" }}
+          className="text-xl font-bold leading-tight text-white sm:text-2xl drop-shadow-md"
         >
           {slide.title || <span className="opacity-30">Titre du slide…</span>}
         </h3>
@@ -300,8 +299,7 @@ function SlideCard({
             </span>
           )}
           <p
-            className="line-clamp-2 text-sm font-black uppercase leading-tight text-white"
-            style={{ fontFamily: "Impact, Arial Black, sans-serif" }}
+            className="line-clamp-2 text-sm font-bold leading-tight text-white drop-shadow-md"
           >
             {slide.title}
           </p>
@@ -452,24 +450,7 @@ export default function PagesAdminPage() {
     <div className="space-y-6">
       <PageBreadCrumb pageTitle="Pages · Slides" />
 
-      {/* Header info */}
-      <div className="rounded-2xl border border-brand-200 dark:border-brand-900/30 bg-brand-50 dark:bg-brand-900/10 p-5">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900/20">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-brand-600">
-              <rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-4 0v2" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-brand-800 dark:text-brand-300">Gestion des slides du carrousel</p>
-            <p className="mt-1 text-sm text-brand-700 dark:text-brand-400">
-              Ces slides sont affichés dans le carrousel principal du site public FC Toro.
-              Chaque slide a un badge, un titre, un bouton et une image de fond.
-              L'API est accessible via <code className="rounded bg-brand-100 dark:bg-brand-900/30 px-1 py-0.5 font-mono text-xs">/api/admin/slides</code>.
-            </p>
-          </div>
-        </div>
-      </div>
+
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
