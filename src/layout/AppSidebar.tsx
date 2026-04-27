@@ -61,6 +61,7 @@ const navItems: NavItem[] = [
     icon: <TableIcon />,
     name: "Tracking",
     path: "/tracking",
+    restricted: true,
   },
   {
     icon: <DocsIcon />,

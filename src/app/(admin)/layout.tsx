@@ -30,7 +30,7 @@ export default function AdminLayout({
     }
 
     // Role-based protection for routes
-    const superAdminOnlyPaths = ["/equipe", "/parametres", "/demandes", "/dashboard", "/stages"];
+    const superAdminOnlyPaths = ["/equipe", "/parametres", "/demandes", "/dashboard", "/stages", "/tracking"];
     const isRestricted = superAdminOnlyPaths.some(path =>
       pathname === path || pathname.startsWith(`${path}/`)
     );
