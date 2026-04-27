@@ -38,13 +38,13 @@ export default function UserDropdown() {
           {currentUser.avatar ? (
             <Image width={44} height={44} src={currentUser.avatar} alt={currentUser.name} className="h-full w-full object-cover" />
           ) : (
-            <span className="flex h-full w-full items-center justify-center bg-brand-500 text-xs font-bold text-white uppercase">
+            <span className="flex h-full w-full items-center justify-center bg-brand-500 text-xs font-bold text-white uppercase whitespace-nowrap">
               {currentUser.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
             </span>
           )}
         </span>
 
-        <span className="mr-1 block text-theme-sm font-medium">{currentUser.name.split(" ")[0]}</span>
+        <span className="mr-1 block text-theme-sm font-medium">{currentUser.name}</span>
 
         <svg
           className={`stroke-gray-500 transition-transform duration-200 dark:stroke-gray-400 ${
