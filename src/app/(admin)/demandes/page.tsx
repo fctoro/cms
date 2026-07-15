@@ -800,6 +800,11 @@ export default function DemandesPage() {
                           ✓ Réponse envoyée
                        </div>
                      )}
+                     {replyStatus === "error" && (
+                       <div className="mx-auto bg-error-50 dark:bg-error-900/10 text-error-700 dark:text-error-400 text-[11px] font-bold py-2 px-4 rounded-full border border-error-200 dark:border-error-900/30 animate-in zoom-in">
+                          ✕ Échec de l'envoi. Veuillez vérifier la connexion.
+                       </div>
+                     )}
                   </div>
 
                   {selectedDemande.type !== "fan" && selectedDemande.type !== "stagiaire" && selectedDemande.email ? (
@@ -809,7 +814,7 @@ export default function DemandesPage() {
                            value={replySubject}
                            onChange={(e) => setReplySubject(e.target.value)}
                            placeholder="Objet de la réponse..."
-                           className="w-full text-xs font-bold border-none bg-gray-50 dark:bg-gray-800/50 rounded-lg px-3 py-2 outline-none focus:bg-white transition-all"
+                           className="w-full text-xs font-bold border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-lg px-3 py-2 outline-none focus:bg-white focus:border-brand-500 transition-all"
                         />
                         <div className="flex gap-2">
                            <textarea
