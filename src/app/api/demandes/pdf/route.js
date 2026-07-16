@@ -358,47 +358,117 @@ export async function GET(request) {
 
     currentY -= 15;
     drawSectionHeader("3. LOGISTIQUE ET PAIEMENT");
-    drawFields([
+    const logisticsFields = [
       ["Taille Maillot:", reg.uniform_top_size],
       ["Taille Short:", reg.uniform_short_size],
       ["Numero Prefere:", reg.preferred_numbers],
       ["Plan de Paiement:", reg.payment_plan],
       ["Methode:", reg.payment_method],
-    ]);
+    ];
 
-    currentY -= 40;
-    if (currentY < 120) {
+    const uniformMap = {
+      uniforme_jeux1: "Jeux 1 (Entrainement)",
+      uniforme_jeux2: "Jeux 2 (Match 1)",
+      uniforme_jeux3: "Jeux 3 (Match 2)",
+      tracksuit: "Tracksuit",
+      backpack: "Backpack"
+    };
+
+    if (Array.isArray(reg.ordered_uniforms) && reg.ordered_uniforms.length > 0) {
+      const items = reg.ordered_uniforms.map(k => uniformMap[k] || k).join(", ");
+      logisticsFields.push(["Articles Commandes:", items]);
+    }
+
+    drawFields(logisticsFields);
+
+    currentY -= 15;
+    drawSectionHeader("4. ENGAGEMENT FINANCIER");
+
+    if (currentY < 200) {
       page = pdfDoc.addPage([595.28, 841.89]);
       currentY = 800;
       drawFooter(page, pdfDoc.getPageCount());
     }
-    
-    page.drawText("Signature du Parent / Tuteur :", {
-      x: 45,
+
+    const engagementText = "Je soussigne(e), parent/personne responsable du joueur inscrit, reconnais avoir pris connaissance de la tarification de la saison 2026-2027 et du plan de paiement choisi. Je reconnais devoir a FC TORO/Fulmoun Production les montants indiques ci-dessus et m'engage a les regler selon l'echeancier convenu. Tout mois engage est du dans son integralite, meme en cas d'absence, de suspension temporaire ou d'arret de participation non notifie par ecrit avant le debut du mois concerne. Tout retard ou defaut de paiement peut entrainer la suspension de la participation du joueur aux activites, sans annuler les sommes dues. En cas de non-reglement apres relances, le dossier pourra etre transmis au service de recouvrement, conformement aux procedures applicables. Aucun versement deja effectue n'est remboursable, sauf decision exceptionnelle de l'administration.";
+
+    page.drawText(engagementText, {
+      x: 50,
       y: currentY,
-      size: 11,
-      font: timesBoldFont,
-      color: rgb(0.1, 0.1, 0.3),
+      size: 9,
+      font: timesRomanFont,
+      color: rgb(0.3, 0.3, 0.3),
+      maxWidth: 495,
+      lineHeight: 13,
     });
+    
+    currentY -= 110;
 
-    const signatureText = reg.signature_name || "Non signee";
-    page.drawText(signatureText, {
-      x: 230,
-      y: currentY + 2,
-      size: 18, // increased size slightly for handwriting font
-      font: signatureFont,
-    });
+    drawFields([
+      ["Nom du responsable:", reg.financial_commitment_name],
+      ["Date:", formatDate(reg.financial_commitment_date)],
+      ["Telephone:", reg.financial_commitment_phone],
+    ]);
 
-    page.drawLine({
-      start: { x: 220, y: currentY - 5 },
-      end: { x: 500, y: currentY - 5 },
-      thickness: 1,
-      color: rgb(0.7, 0.7, 0.7),
-    });
+    currentY -= 40;
+    
+    const drawSignatureBox = (label, name, x, y, width = 240) => {
+      page.drawText(label, {
+        x: x,
+        y: y,
+        size: 10,
+        font: timesBoldFont,
+        color: rgb(0.1, 0.1, 0.3),
+      });
+
+      page.drawRectangle({
+        x: x,
+        y: y - 55,
+        width: width,
+        height: 45,
+        color: rgb(0.93, 0.96, 1.0),
+        borderColor: rgb(0.85, 0.9, 0.95),
+        borderWidth: 1,
+      });
+
+      page.drawText(name || "Non signee", {
+        x: x + 10,
+        y: y - 40,
+        size: 20,
+        font: signatureFont,
+        color: rgb(0.1, 0.1, 0.1),
+      });
+
+      page.drawLine({
+        start: { x: x + 5, y: y - 43 },
+        end: { x: x + width - 5, y: y - 43 },
+        thickness: 1,
+        color: rgb(0.85, 0.88, 0.92),
+      });
+    };
+
+    if (reg.financial_commitment_signature) {
+      if (currentY - 60 < 120) {
+        page = pdfDoc.addPage([595.28, 841.89]);
+        currentY = 800;
+        drawFooter(page, pdfDoc.getPageCount());
+      }
+      drawSignatureBox("Signature Engagement Financier :", reg.financial_commitment_signature, 45, currentY, 450);
+      currentY -= 75;
+    }
+    
+    if (currentY - 80 < 120) {
+      page = pdfDoc.addPage([595.28, 841.89]);
+      currentY = 800;
+      drawFooter(page, pdfDoc.getPageCount());
+    }
+
+    currentY -= 20;
+    drawSignatureBox("Signature du Parent / Tuteur :", reg.signature_name, 45, currentY, 450);
 
     page.drawText(`Fait le : ${formatDate(reg.created_at)}`, {
       x: 45,
-      y: currentY - 25,
+      y: currentY - 75,
       size: 10,
       font: timesRomanFont,
     });

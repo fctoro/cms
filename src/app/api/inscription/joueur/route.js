@@ -95,6 +95,11 @@ function buildPayload(registration) {
     payment_method: registration.payment_method,
     signature_name: registration.signature_name,
     consents: registration.consents,
+    ordered_uniforms: registration.ordered_uniforms,
+    financial_commitment_name: registration.financial_commitment_name,
+    financial_commitment_date: registration.financial_commitment_date,
+    financial_commitment_phone: registration.financial_commitment_phone,
+    financial_commitment_signature: registration.financial_commitment_signature,
   };
 }
 
@@ -184,6 +189,19 @@ export async function POST(request) {
           consent_accuracy: isMultipart ? getBoolean(formData, "consent_accuracy") : Boolean(jsonBody?.consent_accuracy),
           consent_emergency: isMultipart ? getBoolean(formData, "consent_emergency") : Boolean(jsonBody?.consent_emergency),
         },
+      ordered_uniforms: isMultipart
+        ? [
+            getBoolean(formData, "uniform_order_uniforme_jeux1") ? "uniforme_jeux1" : null,
+            getBoolean(formData, "uniform_order_uniforme_jeux2") ? "uniforme_jeux2" : null,
+            getBoolean(formData, "uniform_order_uniforme_jeux3") ? "uniforme_jeux3" : null,
+            getBoolean(formData, "uniform_order_tracksuit") ? "tracksuit" : null,
+            getBoolean(formData, "uniform_order_backpack") ? "backpack" : null,
+          ].filter(Boolean)
+        : (jsonBody?.ordered_uniforms || []),
+      financial_commitment_name: isMultipart ? getString(formData, "engagement_name") : String(jsonBody?.engagement_name || "").trim(),
+      financial_commitment_date: isMultipart ? getString(formData, "engagement_date") : String(jsonBody?.engagement_date || "").trim(),
+      financial_commitment_phone: isMultipart ? getString(formData, "engagement_phone") : String(jsonBody?.engagement_phone || "").trim(),
+      financial_commitment_signature: isMultipart ? getString(formData, "engagement_signature") : String(jsonBody?.engagement_signature || "").trim(),
     };
 
     if (
@@ -206,6 +224,10 @@ export async function POST(request) {
         registrationInput.payment_plan,
         registrationInput.payment_method,
         registrationInput.signature_name,
+        registrationInput.financial_commitment_name,
+        registrationInput.financial_commitment_date,
+        registrationInput.financial_commitment_phone,
+        registrationInput.financial_commitment_signature,
       ].some((value) => !value)
     ) {
       return NextResponse.json(
@@ -236,14 +258,17 @@ export async function POST(request) {
         guardian_name, guardian_email, guardian_phone, guardian_address,
         emergency_name, emergency_relation, emergency_phone, emergency_email, emergency_address,
         uniform_top_size, uniform_short_size, preferred_numbers,
-        payment_plan, payment_method, signature_name, consents
+        payment_plan, payment_method, signature_name, consents,
+        ordered_uniforms, financial_commitment_name, financial_commitment_date,
+        financial_commitment_phone, financial_commitment_signature
       ) VALUES (
         $1,$2,$3,$4,$5,
         $6,$7,$8,
         $9,$10,$11,$12,
         $13,$14,$15,$16,$17,
         $18,$19,$20,
-        $21,$22,$23,$24
+        $21,$22,$23,$24,
+        $25,$26,$27,$28,$29
       ) RETURNING *`,
       [
         registrationInput.program,
@@ -270,6 +295,11 @@ export async function POST(request) {
         registrationInput.payment_method,
         registrationInput.signature_name,
         JSON.stringify(registrationInput.consents || {}),
+        JSON.stringify(registrationInput.ordered_uniforms || []),
+        registrationInput.financial_commitment_name,
+        registrationInput.financial_commitment_date,
+        registrationInput.financial_commitment_phone,
+        registrationInput.financial_commitment_signature,
       ],
     );
 
