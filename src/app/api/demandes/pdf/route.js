@@ -410,8 +410,57 @@ export async function GET(request) {
       ["Telephone:", reg.financial_commitment_phone],
     ]);
 
-    currentY -= 40;
+    currentY -= 20;
     
+    let consentItems = [];
+    if (reg.consents?.consent_media) {
+      consentItems.push("J'autorise l'utilisation des photos et vidéos de mon enfant sur les réseaux sociaux et sur tout support de communication relatif à FC TORO.");
+    }
+    if (reg.consents?.consent_health) {
+      consentItems.push("Je certifie que mon enfant ne présente aucune contre-indication médicale à la pratique du football.");
+    }
+    if (reg.consents?.consent_emergency) {
+      consentItems.push("Je soussigné(e) autorise les responsables de FC TORO à prendre toutes les dispositions nécessaires en cas d'urgence médicale concernant mon enfant.");
+    }
+
+    if (consentItems.length > 0) {
+      if (currentY < 180) {
+        page = pdfDoc.addPage([595.28, 841.89]);
+        currentY = 800;
+        drawFooter(page, pdfDoc.getPageCount());
+      }
+      drawSectionHeader("5. AUTORISATIONS & ENGAGEMENT");
+      
+      for (const item of consentItems) {
+        page.drawRectangle({
+          x: 50,
+          y: currentY + 3,
+          width: 8,
+          height: 8,
+          borderColor: rgb(0.5, 0.5, 0.5),
+          borderWidth: 1,
+        });
+        
+        // cross
+        page.drawLine({ start: { x: 50, y: currentY + 3 }, end: { x: 58, y: currentY + 11 }, thickness: 1, color: rgb(0,0,0) });
+        page.drawLine({ start: { x: 58, y: currentY + 3 }, end: { x: 50, y: currentY + 11 }, thickness: 1, color: rgb(0,0,0) });
+
+        page.drawText(item, {
+          x: 65,
+          y: currentY,
+          size: 9,
+          font: timesRomanFont,
+          color: rgb(0.3, 0.3, 0.3),
+          maxWidth: 480,
+          lineHeight: 13,
+        });
+        
+        const linesCount = Math.ceil(item.length / 85);
+        currentY -= (linesCount * 13) + 10;
+      }
+    }
+
+    currentY -= 20;
     const drawSignatureBox = (label, name, x, y, width = 240) => {
       page.drawText(label, {
         x: x,
@@ -473,10 +522,7 @@ export async function GET(request) {
       font: timesRomanFont,
     });
 
-    if (currentY < 160) {
-      page = pdfDoc.addPage([595.28, 841.89]);
-      drawFooter(page, pdfDoc.getPageCount());
-    }
+
     currentY = 160;
 
     page.drawText("Réservé à l'administration", {
