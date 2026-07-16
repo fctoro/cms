@@ -145,6 +145,21 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "ID manquant." }, { status: 400 });
     }
 
+    const { rows: msgs } = await db.query("SELECT * FROM site_messages WHERE id = $1", [id]);
+    if (msgs.length > 0) {
+      const msg = msgs[0];
+      // Si c'est une inscription de joueur, on la supprime aussi de la base de données source (player_registrations)
+      // pour éviter qu'elle ne se resynchronise automatiquement.
+      if (msg.type === "joueur") {
+        await db.query(
+          `DELETE FROM player_registrations 
+           WHERE guardian_email = $1 
+             AND ABS(EXTRACT(EPOCH FROM created_at) - EXTRACT(EPOCH FROM $2::timestamptz)) < 60`,
+          [msg.email, msg.created_at]
+        );
+      }
+    }
+
     await db.query("DELETE FROM site_messages WHERE id = $1", [id]);
 
     return NextResponse.json({ ok: true });

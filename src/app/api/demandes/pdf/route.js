@@ -232,7 +232,7 @@ export async function GET(request) {
       color: rgb(0.4, 0.4, 0.4),
     });
 
-    page.drawText("Port-au-Prince, Haiti | contact@fctoro.com", {
+    page.drawText("7, Rue Rigaud Pétion-Ville,Haïti | footballclubtoro@gmail.com", {
       x: 105,
       y: height - 90,
       size: 9,
@@ -472,6 +472,70 @@ export async function GET(request) {
       size: 10,
       font: timesRomanFont,
     });
+
+    if (currentY < 160) {
+      page = pdfDoc.addPage([595.28, 841.89]);
+      drawFooter(page, pdfDoc.getPageCount());
+    }
+    currentY = 160;
+
+    page.drawText("Réservé à l'administration", {
+      x: 45,
+      y: currentY,
+      size: 12,
+      font: timesBoldFont,
+      color: rgb(0, 0, 0),
+    });
+
+    currentY -= 15;
+    
+    const tableX = 45;
+    const tableY = currentY;
+    const colWidths = [100, 120, 130, 150];
+    const rowHeight = 25;
+    
+    // Grey backgrounds
+    page.drawRectangle({ x: tableX, y: tableY - rowHeight, width: colWidths[0], height: rowHeight, color: rgb(0.92, 0.92, 0.92) });
+    page.drawRectangle({ x: tableX + colWidths[0] + colWidths[1], y: tableY - rowHeight, width: colWidths[2], height: rowHeight, color: rgb(0.92, 0.92, 0.92) });
+    page.drawRectangle({ x: tableX, y: tableY - 2 * rowHeight, width: colWidths[0], height: rowHeight, color: rgb(0.92, 0.92, 0.92) });
+    page.drawRectangle({ x: tableX + colWidths[0] + colWidths[1], y: tableY - 2 * rowHeight, width: colWidths[2], height: rowHeight, color: rgb(0.92, 0.92, 0.92) });
+
+    // Grid lines
+    for (let i = 0; i <= 2; i++) { // horizontal
+      page.drawLine({ start: { x: tableX, y: tableY - i * rowHeight }, end: { x: tableX + 500, y: tableY - i * rowHeight }, thickness: 1, color: rgb(0, 0, 0) });
+    }
+    let currentX = tableX;
+    for (let i = 0; i <= 4; i++) { // vertical
+      page.drawLine({ start: { x: currentX, y: tableY }, end: { x: currentX, y: tableY - 2 * rowHeight }, thickness: 1, color: rgb(0, 0, 0) });
+      if (i < 4) currentX += colWidths[i];
+    }
+
+    const textOpts = { size: 8, font: timesBoldFont, color: rgb(0, 0, 0) };
+    const valOpts = { size: 8, font: timesRomanFont, color: rgb(0, 0, 0) };
+    
+    const drawCheckbox = (x, y, text) => {
+      page.drawRectangle({ x: x, y: y - 4, width: 6, height: 6, borderColor: rgb(0, 0, 0), borderWidth: 1 });
+      page.drawText(text, { x: x + 10, y: y - 4, ...valOpts });
+    };
+    
+    page.drawText("Catégorie retenue", { x: tableX + 5, y: tableY - 15, ...textOpts });
+    drawCheckbox(tableX + colWidths[0] + 5, tableY - 12, "FC TORO");
+    drawCheckbox(tableX + colWidths[0] + 65, tableY - 12, "TI TORO");
+    
+    page.drawText("Plan retenu", { x: tableX + colWidths[0] + colWidths[1] + 5, y: tableY - 15, ...textOpts });
+    drawCheckbox(tableX + colWidths[0] + colWidths[1] + colWidths[2] + 5, tableY - 12, "Annuel");
+    drawCheckbox(tableX + colWidths[0] + colWidths[1] + colWidths[2] + 45, tableY - 12, "Semestriel");
+    drawCheckbox(tableX + colWidths[0] + colWidths[1] + colWidths[2] + 95, tableY - 12, "Mensuel");
+    
+    page.drawText("Montant total dû", { x: tableX + 5, y: tableY - rowHeight - 15, ...textOpts });
+    page.drawText("$", { x: tableX + colWidths[0] + 5, y: tableY - rowHeight - 15, ...valOpts });
+    page.drawText("Montant versé à l'inscription", { x: tableX + colWidths[0] + colWidths[1] + 5, y: tableY - rowHeight - 15, ...textOpts });
+    page.drawText("$", { x: tableX + colWidths[0] + colWidths[1] + colWidths[2] + 5, y: tableY - rowHeight - 15, ...valOpts });
+
+    currentY -= (2 * rowHeight + 40);
+
+    page.drawLine({ start: { x: 345, y: currentY }, end: { x: 545, y: currentY }, thickness: 1, color: rgb(0, 0, 0) });
+    page.drawText("Signature du Responsable", { x: 380, y: currentY - 15, size: 10, font: timesBoldFont, color: rgb(0, 0, 0) });
 
     drawFooter(page, 1);
 
