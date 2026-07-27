@@ -19,7 +19,7 @@ async function syncMissingPlayerDemandes() {
          AND email = $1
          AND ABS(EXTRACT(EPOCH FROM created_at) - EXTRACT(EPOCH FROM $2::timestamptz)) < 60
        LIMIT 1`,
-      [player.guardian_email, player.created_at],
+      [player.guardian_email, new Date(player.created_at).toISOString()],
     );
 
     if (existing.length > 0) {
