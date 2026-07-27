@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import PageBreadCrumb from "@/components/common/PageBreadCrumb";
+import ExportButton from "@/components/common/ExportButton";
 import { SectionCard } from "@/components/common/CmsShared";
 import Badge from "@/components/ui/badge/Badge";
 import Loader from "@/components/common/Loader";
@@ -111,14 +112,6 @@ function formatDemandDate(value: string) {
   })} ${date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
 function flattenPayload(value: unknown, prefix = ""): Record<string, string> {
   if (value === null || value === undefined) {
     return prefix ? { [prefix]: "—" } : {};
@@ -217,51 +210,6 @@ function buildExportRow(demande: Demande) {
     ...flattenPayload(demande.payload),
   };
 }
-
-function downloadExcel(rows: Record<string, string>[], filename: string) {
-  const columns = Array.from(
-    rows.reduce((set, row) => {
-      Object.keys(row).forEach((key) => set.add(key));
-      return set;
-    }, new Set<string>()),
-  );
-
-  const tableHead = columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("");
-  const tableBody = rows
-    .map((row) => {
-      const cells = columns
-        .map((column) => `<td>${escapeHtml(String(row[column] ?? ""))}</td>`)
-        .join("");
-      return `<tr>${cells}</tr>`;
-    })
-    .join("");
-
-  const html = `<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-  </head>
-  <body>
-    <table>
-      <thead><tr>${tableHead}</tr></thead>
-      <tbody>${tableBody}</tbody>
-    </table>
-  </body>
-</html>`;
-
-  const blob = new Blob(["\ufeff", html], {
-    type: "application/vnd.ms-excel;charset=utf-8;",
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function DemandesPage() {
@@ -293,6 +241,12 @@ export default function DemandesPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [yearFilter, setYearFilter] = useState("all");
 
+  // Duplicate Check & Downloads
+  const [duplicateCheck, setDuplicateCheck] = useState<{ isDuplicate: boolean; source?: string; player?: any } | null>(null);
+  const [downloadTarget, setDownloadTarget] = useState<Demande | null>(null);
+  const [downloadDocs, setDownloadDocs] = useState<{id: number, key: string, label: string, url: string}[]>([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+
   useEffect(() => {
     setMounted(true);
     fetchDemandes();
@@ -303,6 +257,18 @@ export default function DemandesPage() {
     setReplySubject("");
     setReplyBody("");
     setReplyStatus("idle");
+    setDuplicateCheck(null);
+
+    if (selectedDemande && selectedDemande.type === "joueur") {
+      fetch(`/api/demandes/${selectedDemande.id}/check-duplicate`)
+        .then(res => res.json())
+        .then(data => {
+          if (!data.error && data.isDuplicate) {
+            setDuplicateCheck(data);
+          }
+        })
+        .catch(err => console.error(err));
+    }
   }, [selectedDemande?.id]);
 
   const fetchDemandes = async () => {
@@ -367,13 +333,35 @@ export default function DemandesPage() {
         body: JSON.stringify({ id, is_read: !currentStatus }),
       });
       if (res.ok) {
-        setDemandes((prev) =>
-          prev.map((d) => (d.id === id ? { ...d, is_read: !currentStatus } : d))
-        );
+        setDemandes(demandes.map((d) => (d.id === id ? { ...d, is_read: true } : d)));
         refreshUnreadDemandesCount();
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleDownloadClick = async (d: Demande) => {
+    if (d.type === "stagiaire") {
+      const cvPath = d.payload?.cv || d.payload?.cv_url;
+      if (cvPath) {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
+        window.open(`${siteUrl}${cvPath}`, "_blank");
+      } else {
+        window.open(`/api/stages/pdf?id=${d.id}`, "_blank");
+      }
+    } else {
+      setDownloadTarget(d);
+      setIsLoadingDocs(true);
+      try {
+        const res = await fetch(`/api/demandes/${d.id}/documents?_t=${Date.now()}`);
+        const data = await res.json();
+        setDownloadDocs(data.documents || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoadingDocs(false);
+      }
     }
   };
 
@@ -524,14 +512,6 @@ export default function DemandesPage() {
   const typeInfo = (type: string) =>
     TYPE_LABELS[type] ?? { label: type.toUpperCase(), color: "info" };
 
-  const handleExport = () => {
-    const rows = filteredDemandes.map(buildExportRow);
-    if (rows.length === 0) return;
-
-    const suffix = yearFilter === "all" ? "toutes-annees" : `depuis-${yearFilter}`;
-    downloadExcel(rows, `${activeTab}-${suffix}.xls`);
-  };
-
   return (
     <div className="space-y-6">
       <PageBreadCrumb pageTitle="Boîte de réception" />
@@ -589,14 +569,10 @@ export default function DemandesPage() {
                   </option>
                 ))}
               </select>
-              <button
-                type="button"
-                onClick={handleExport}
-                disabled={filteredDemandes.length === 0}
-                className="inline-flex h-11 items-center justify-center rounded-lg bg-success-600 px-4 text-sm font-medium text-white transition hover:bg-success-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Exporter Excel
-              </button>
+              <ExportButton 
+                data={filteredDemandes.map(buildExportRow)}
+                filename={`${activeTab}-${yearFilter === "all" ? "toutes-annees" : `depuis-${yearFilter}`}`}
+              />
             </div>
           ) : null
         }
@@ -687,17 +663,7 @@ export default function DemandesPage() {
                                 <button 
                                    onClick={(e) => {
                                      e.stopPropagation();
-                                     if (d.type === "stagiaire") {
-                                       const cvPath = d.payload?.cv || d.payload?.cv_url;
-                                       if (cvPath) {
-                                         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
-                                         window.open(`${siteUrl}${cvPath}`, "_blank");
-                                       } else {
-                                          window.open(`/api/stages/pdf?id=${d.id}`, "_blank");
-                                       }
-                                     } else {
-                                       window.open(`/api/demandes/pdf?id=${d.id}`, "_blank");
-                                     }
+                                     handleDownloadClick(d);
                                    }}
                                    className="text-gray-500 hover:text-brand-500 transition-colors" 
                                    title="Télécharger Dossier PDF"
@@ -753,6 +719,15 @@ export default function DemandesPage() {
 
             <div className="flex flex-1 overflow-hidden">
                <div className="flex-1 flex flex-col bg-gray-50/30 dark:bg-white/[0.01]">
+                  {duplicateCheck?.isDuplicate && (
+                    <div className="m-5 mb-0 p-4 bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-900/30 rounded-2xl flex gap-3 animate-in slide-in-from-top-2">
+                      <span className="text-warning-600 dark:text-warning-400 text-lg">⚠️</span>
+                      <div className="text-xs text-warning-800 dark:text-warning-200">
+                        <strong className="block mb-1 text-sm">Attention : Doublon potentiel !</strong>
+                        Un joueur nommé <strong>{duplicateCheck.player.first_name || duplicateCheck.player.child_first_name} {duplicateCheck.player.last_name || duplicateCheck.player.child_last_name}</strong> existe déjà dans {duplicateCheck.source === 'club_players' ? "les joueurs du club" : "les anciennes inscriptions"}. Vérifiez s'il s'agit de la même personne avant de valider.
+                      </div>
+                    </div>
+                  )}
                   <div className="flex-1 overflow-y-auto p-5 space-y-6">
                      {/* INITIAL MESSAGE */}
                      {selectedDemande.message && (
@@ -889,19 +864,7 @@ export default function DemandesPage() {
                      <div className="pt-4 space-y-3">
                         {(selectedDemande.type === "joueur" || selectedDemande.type === "stagiaire") && (
                            <button 
-                              onClick={() => {
-                                 if (selectedDemande.type === "stagiaire") {
-                                    const cvPath = selectedDemande.payload?.cv || selectedDemande.payload?.cv_url;
-                                    if (cvPath) {
-                                       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
-                                       window.open(`${siteUrl}${cvPath}`, "_blank");
-                                    } else {
-                                       window.open(`/api/stages/pdf?id=${selectedDemande.id}`, '_blank');
-                                    }
-                                 } else {
-                                    window.open(`/api/demandes/pdf?id=${selectedDemande.id}`, '_blank');
-                                 }
-                              }}
+                              onClick={() => handleDownloadClick(selectedDemande)}
                               className="w-full py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-[11px] font-black uppercase tracking-widest text-white transition-all shadow-lg shadow-brand-500/20 flex items-center justify-center gap-2 mb-2"
                            >
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -1037,6 +1000,66 @@ export default function DemandesPage() {
                    </button>
                 </div>
              </div>
+          </div>
+        </div>,
+        document.body
+      )}
+      {/* ── DOWNLOAD MODAL ── */}
+      {downloadTarget && mounted && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-[6px] p-4 transition-all duration-300">
+          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-gray-900">
+               <div>
+                  <h3 className="text-lg font-black text-gray-900 dark:text-white">Téléchargements</h3>
+                  <p className="text-xs text-gray-500 mt-1 font-medium">Sélectionnez le document à télécharger</p>
+               </div>
+               <button onClick={() => setDownloadTarget(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-gray-400">✕</button>
+            </div>
+            
+            <div className="p-6 space-y-4 bg-gray-50/30 dark:bg-white/[0.01]">
+               <button 
+                  onClick={() => window.open(`/api/demandes/pdf?id=${downloadTarget.id}`, "_blank")}
+                  className="w-full group p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl hover:border-brand-500 transition-all flex items-center gap-4 text-left shadow-sm hover:shadow-md"
+               >
+                  <div className="h-12 w-12 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-500 flex items-center justify-center group-hover:scale-110 group-hover:bg-gray-100 dark:group-hover:bg-gray-600 transition-all">
+                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                  </div>
+                  <div>
+                     <div className="text-sm font-bold text-gray-900 dark:text-white">Dossier d'inscription complet (PDF)</div>
+                     <div className="text-[11px] text-gray-500 mt-0.5">Fiche auto-générée avec les réponses du formulaire</div>
+                  </div>
+               </button>
+
+               {isLoadingDocs ? (
+                  <div className="flex items-center justify-center p-8 space-x-3 text-gray-400">
+                     <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                     <span className="text-xs font-bold uppercase tracking-widest">Recherche des pièces jointes...</span>
+                  </div>
+               ) : downloadDocs.length > 0 ? (
+                  <div className="space-y-3 pt-2">
+                     <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">Pièces jointes originales</div>
+                     {downloadDocs.map((doc) => (
+                        <button 
+                           key={doc.id}
+                           onClick={() => window.open(doc.url, "_blank")}
+                           className="w-full group p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl hover:border-brand-500 transition-all flex items-center gap-4 text-left shadow-sm hover:shadow-md"
+                        >
+                           <div className="h-12 w-12 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-500 flex items-center justify-center group-hover:scale-110 group-hover:bg-gray-100 dark:group-hover:bg-gray-600 transition-all">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                           </div>
+                           <div className="flex-1 overflow-hidden">
+                              <div className="text-sm font-bold text-gray-900 dark:text-white truncate">{doc.label}</div>
+                              <div className="text-[11px] text-gray-500 mt-0.5 truncate">{doc.filename}</div>
+                           </div>
+                        </button>
+                     ))}
+                  </div>
+               ) : (
+                  <div className="text-center p-6 bg-gray-100 dark:bg-gray-800/50 rounded-2xl text-xs text-gray-500 italic">
+                     Aucune pièce jointe supplémentaire
+                  </div>
+               )}
+            </div>
           </div>
         </div>,
         document.body

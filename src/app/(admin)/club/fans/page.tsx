@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import PageBreadCrumb from "@/components/common/PageBreadCrumb";
 import { SectionCard } from "@/components/common/CmsShared";
+import ExportButton from "@/components/common/ExportButton";
 import Badge from "@/components/ui/badge/Badge";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import { EyeIcon, TrashBinIcon, CheckCircleIcon } from "@/icons";
@@ -116,6 +117,19 @@ export default function FansPage() {
       <SectionCard
         title="Liste des Fans"
         description="Consultez et gérez tous les membres qui ont rejoint le club des fans."
+        actions={
+          <ExportButton 
+            data={fans.map(f => ({
+              "Nom": f.name || "",
+              "Email": f.email || "",
+              "Téléphone": f.phone || "",
+              "Département": f.payload?.department || "",
+              "Statut": f.status === "accepted" ? "Accepté" : f.status === "rejected" ? "Refusé" : "En attente",
+              "Date inscription": new Date(f.created_at).toLocaleDateString("fr-FR"),
+            }))}
+            filename="fans_club" 
+          />
+        }
       >
         <div className="mb-4 flex gap-2">
           {["all", "pending", "accepted", "rejected"].map((f) => (

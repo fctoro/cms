@@ -8,6 +8,7 @@ import { fetchAdminJson, mapDbStage } from "@/lib/cms-admin-client";
 import { CmsStage } from "@/types/cms";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import ExportButton from "@/components/common/ExportButton";
 
 export default function StagesPage() {
   const [stages, setStages] = useState<CmsStage[]>([]);
@@ -48,12 +49,27 @@ export default function StagesPage() {
         title="Offres de recrutement"
         description="Publiez, ajustez ou cloturez vos opportunites."
         actions={
-          <Link
-            href="/stages/nouveau"
-            className="rounded-lg bg-brand-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-brand-600"
-          >
-            Nouveau recrutement
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <ExportButton 
+              data={stages.map(stage => ({
+                "Recrutement": stage.title || "",
+                "Département": stage.department || "",
+                "Lieu": stage.location || "",
+                "Format": stage.workMode || "",
+                "Statut": stage.status || "",
+                "Clôture": stage.closeDate || formatDate(stage.updatedAt),
+                "Vues": String(stage.metrics?.views || 0),
+                "Candidatures": String(stage.metrics?.applications || 0)
+              }))}
+              filename="stages_recrutement" 
+            />
+            <Link
+              href="/stages/nouveau"
+              className="inline-flex h-11 items-center justify-center rounded-lg bg-brand-500 px-4 text-sm font-medium text-white transition hover:bg-brand-600"
+            >
+              Nouveau recrutement
+            </Link>
+          </div>
         }
       >
         <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
